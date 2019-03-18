@@ -1,0 +1,5 @@
+syntax: glob
+graphicsMidterm/Library
+graphicsMidterm/ProjectSettings
+graphicsMidterm/Temp
+graphicsMidterm/Packages/manifest.json
