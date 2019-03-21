@@ -7,6 +7,7 @@ Shader "Unlit/MySnowShader"
 		_Color("Main Color", Color) = (1,1,1,1)
 		_MainTex("Base (RGB)", 2D) = "white" {}
 		_BumpTex("Normalmap", 2D) = "bump" {}
+		_HeightTex("Heightmap", 2D) = "bump" {}
 		_Amount("Extrusion Amount", Range(-1,1)) = 0.5
 	}
    
@@ -17,6 +18,8 @@ Shader "Unlit/MySnowShader"
 
 		CGPROGRAM
 		#pragma surface surf Lambert alphatest:Zero
+
+		#include "UnityCG.cginc"
 
 		sampler2D _MainTex;
 		sampler2D _BumpTex;
@@ -43,10 +46,6 @@ Shader "Unlit/MySnowShader"
 		}
 
 		float _Amount;
-		void vert(inout appdata_full v) 
-		{
-			v.vertex.xyz += v.normal * _Amount;
-		}
 
 		ENDCG
     
