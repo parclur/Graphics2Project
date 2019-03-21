@@ -207,14 +207,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 145720134}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0ff99624d24c8524bb121d836cbd7990, type: 3}
+  m_Script: {fileID: 11500000, guid: da936250c131a4e87b58e78e22d8d4d3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  resolution: 256
+  frequency: 1
   octaves: 1
   lacunarity: 2
   persistence: 0.5
   dimensions: 3
-  resolution: 256
   type: 0
   coloring:
     serializedVersion: 2
@@ -245,7 +246,6 @@ MonoBehaviour:
     m_Mode: 0
     m_NumColorKeys: 2
     m_NumAlphaKeys: 2
-  frequency: 1
 --- !u!1 &1378359112
 GameObject:
   m_ObjectHideFlags: 0
@@ -416,14 +416,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 2036301134}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0ff99624d24c8524bb121d836cbd7990, type: 3}
+  m_Script: {fileID: 11500000, guid: da936250c131a4e87b58e78e22d8d4d3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  resolution: 256
+  frequency: 1
   octaves: 1
   lacunarity: 2
   persistence: 0.5
   dimensions: 3
-  resolution: 256
   type: 0
   coloring:
     serializedVersion: 2
@@ -454,7 +455,6 @@ MonoBehaviour:
     m_Mode: 0
     m_NumColorKeys: 2
     m_NumAlphaKeys: 2
-  frequency: 1
 --- !u!64 &2036301136
 MeshCollider:
   m_ObjectHideFlags: 0
