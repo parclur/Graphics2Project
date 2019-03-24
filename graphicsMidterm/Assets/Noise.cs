@@ -186,10 +186,7 @@ public static class Noise {
 
 		tx = Smooth(tx);
 		ty = Smooth(ty);
-		return Mathf.Lerp(
-			Mathf.Lerp(h00, h10, tx),
-			Mathf.Lerp(h01, h11, tx),
-			ty) * (1f / hashMask);
+		return Mathf.Lerp(Mathf.Lerp(h00, h10, tx), Mathf.Lerp(h01, h11, tx), ty) * (1f / hashMask);
 	}
 
 	public static float Value3D (Vector3 point, float frequency)
@@ -227,10 +224,7 @@ public static class Noise {
 		tx = Smooth(tx);
 		ty = Smooth(ty);
 		tz = Smooth(tz);
-		return Mathf.Lerp(
-			Mathf.Lerp(Mathf.Lerp(h000, h100, tx), Mathf.Lerp(h010, h110, tx), ty),
-			Mathf.Lerp(Mathf.Lerp(h001, h101, tx), Mathf.Lerp(h011, h111, tx), ty),
-			tz) * (1f / hashMask);
+		return Mathf.Lerp(Mathf.Lerp(Mathf.Lerp(h000, h100, tx), Mathf.Lerp(h010, h110, tx), ty), Mathf.Lerp(Mathf.Lerp(h001, h101, tx), Mathf.Lerp(h011, h111, tx), ty), tz) * (1f / hashMask);
 	}
 
     // PERLIN NOISE by Ken Perlin
@@ -336,10 +330,7 @@ public static class Noise {
 		float tx = Smooth(tx0);
 		float ty = Smooth(ty0);
 		float tz = Smooth(tz0);
-		return Mathf.Lerp(
-			Mathf.Lerp(Mathf.Lerp(v000, v100, tx), Mathf.Lerp(v010, v110, tx), ty),
-			Mathf.Lerp(Mathf.Lerp(v001, v101, tx), Mathf.Lerp(v011, v111, tx), ty),
-			tz);
+		return Mathf.Lerp(Mathf.Lerp(Mathf.Lerp(v000, v100, tx), Mathf.Lerp(v010, v110, tx), ty), Mathf.Lerp(Mathf.Lerp(v001, v101, tx), Mathf.Lerp(v011, v111, tx), ty), tz);
 	}
 
     // makes fractal noise
@@ -357,7 +348,7 @@ public static class Noise {
             frequency *= lacunarity; // lacunarity - the factor by which the frequency changes
             amplitude *= persistence; // persistence or gain - the factor by which the amplitude changes
             range += amplitude;
-			sum += method(point, frequency) * amplitude;
+			sum += Mathf.Abs(method(point, frequency)) * amplitude;
 		}
 		return sum / range;
 	}
