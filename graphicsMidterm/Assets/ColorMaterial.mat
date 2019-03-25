@@ -26,9 +26,14 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
-    m_Floats: []
+    m_Floats:
+    - _GlitterPow: 1
+    - _NoiseScale: 5
+    - _SparkleDepth: 2
+    - _SpecPow: 24
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _ColorBlue: {r: 0, g: 0, b: 1, a: 0.39215687}
     - _ColorGreen: {r: 0, g: 1, b: 0, a: 0.39215687}
     - _ColorWhite: {r: 1, g: 1, b: 1, a: 0.39215687}
+    - _SpecColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
