@@ -13,16 +13,55 @@
 		//_Dimensions ("Dimensions", Range(1, 3)) = 3
 		//_NoiseMethodType ("Noise Type", )
 		//_Gradient
+
+	_BumpTex("Normalmap", 2D) = "bump" {}
 	
 		// Color variables
-		_ColorBlue ("Blue", Color) = (0, 0, 1, 1)
-		_ColorGreen ("Green", Color) = (0, 1, 0, 1)
-		_ColorWhite ("White", Color) = (1, 1, 1, 1)
+		_ColorBlue ("Blue", Color) = (0, 0, 1, .05)
+		_ColorGreen ("Green", Color) = (0, 1, 0, .05)
+		_ColorWhite ("White", Color) = (1, 1, 1, .05)
 	}
 	SubShader
 	{
-		Tags { "RenderType"="Opaque" }
+			Tags{ "RenderType" = "Transparent" }
+			LOD 300
+
+			CGPROGRAM
+			//#pragma surface surf Lambert alphatest:Zero
+	#pragma surface surfaceFunction Lambert
+	#include "UnityCG.cginc"
+
+			sampler2D _MainTex;
+		sampler2D _BumpTex;
+		sampler2D _DissolveTex;
+		float4 _Color;
+		float4 _Tint;
+
+		struct Input
+		{
+			float2 uv_MainTex;
+			float2 uv_BumpTex;
+			float2 uv_DissolveTex;
+		};
+
+		void surfaceFunction(Input IN, inout SurfaceOutput o)
+		{
+			half4 tex = tex2D(_MainTex, IN.uv_MainTex);
+
+			o.Albedo = tex.rgb * _Color.rgb * _Tint.rgb;
+			o.Normal = UnpackNormal(tex2D(_BumpTex, IN.uv_BumpTex));
+			o.Alpha = _Color.a;
+
+			o.Albedo = tex2D(_MainTex, IN.uv_MainTex).rgb;
+		}
+
+		ENDCG
+
+		Tags { "Queue"="Transparent" "RenderType" = "Transparent" }
 		LOD 100
+
+		ZWrite Off
+		Blend SrcAlpha OneMinusSrcAlpha
 
 		Pass
 		{
@@ -130,7 +169,7 @@
 				//temp = lerp(_ColorBlue, thicknessColor, float4(pixelCoord, 0, 0));
 				temp = lerp(_ColorBlue, _ColorGreen, float4(pixelCoord, 0, 0));
 
-				return col + temp;
+				return temp;
 			}
 			ENDCG
 		}

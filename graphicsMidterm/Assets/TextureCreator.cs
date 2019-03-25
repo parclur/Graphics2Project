@@ -26,7 +26,8 @@ public class TextureCreator : MonoBehaviour {
 	private Texture2D texture;
 	
 	private void OnEnable () {
-		if (texture == null) {
+
+        if (texture == null) {
 			texture = new Texture2D(resolution, resolution, TextureFormat.RGB24, true);
 			texture.name = "Procedural Texture";
 			texture.wrapMode = TextureWrapMode.Clamp;
