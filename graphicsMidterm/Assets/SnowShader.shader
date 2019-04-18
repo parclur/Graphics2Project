@@ -15,7 +15,7 @@ Shader "Unlit/SnowShader"
 		//_NoiseMethodType ("Noise Type", )
 		//_Gradient
 
-	_BumpTex("Normalmap", 2D) = "bump" {}
+		_BumpTex("Normalmap", 2D) = "bump" {}
 	
 		// Color variables
 		_ColorBlue ("Blue", Color) = (0, 0, 1, .05)
@@ -192,77 +192,164 @@ Shader "Unlit/SnowShader"
 		{
 			Tags{ "LightMode" = "ForwardBase" }
 			CGPROGRAM
-		#pragma vertex vert
-		#pragma fragment frag
+			#pragma vertex vert
+			#pragma fragment frag
 			// make fog work
-		#pragma multi_compile_fog
+			#pragma multi_compile_fog
 
-		#include "UnityCG.cginc"
-		#include "Simplex3D.cginc"
-		#include "SparklesCG.cginc"
+			#include "UnityCG.cginc"
+			#include "Simplex3D.cginc"
+			#include "SparklesCG.cginc"
 
 			struct appdata
-		{
+			{
 			float4 vertex : POSITION;
 			float2 uv : TEXCOORD0;
 			float3 normal : NORMAL;
-		};
+			};
 
-		struct v2f
-		{
-			float2 uv : TEXCOORD0;
-			UNITY_FOG_COORDS(1)
+			struct v2f
+			{
+				float2 uv : TEXCOORD0;
+				UNITY_FOG_COORDS(1)
 				float4 vertex : SV_POSITION;
-			float3 wPos : TEXCOORD1;
-			float3 pos : TEXCOORD3;
-			float3 normal : NORMAL;
-		};
+				float3 wPos : TEXCOORD1;
+				float3 pos : TEXCOORD3;
+				float3 normal : NORMAL;
+			};
 
-		sampler2D _MainTex;
-		float4 _MainTex_ST;
-		float4 _Color, _SpecColor;
-		float _SpecPow, _GlitterPow;
+			sampler2D _MainTex;
+			float4 _MainTex_ST;
+			float4 _Color, _SpecColor;
+			float _SpecPow, _GlitterPow;
 
-		v2f vert(appdata v)
-		{
-			v2f o;
+			v2f vert(appdata v)
+			{
+				v2f o;
 
-			o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-			o.wPos = mul(unity_ObjectToWorld, v.vertex).xyz;
-			o.pos = v.vertex;
-			o.normal = mul(unity_ObjectToWorld, float4(v.normal,0)).xyz;
-			o.vertex = UnityObjectToClipPos(v.vertex);
-			UNITY_TRANSFER_FOG(o,o.vertex);
-			return o;
+				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+				o.wPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+				o.pos = v.vertex;
+				o.normal = mul(unity_ObjectToWorld, float4(v.normal,0)).xyz;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				UNITY_TRANSFER_FOG(o,o.vertex);
+				return o;
+			}
+
+			fixed4 frag(v2f i) : SV_Target
+			{
+				// ****SPARKLE LAYER****
+				//Light Calculation
+				float3 normal = normalize(i.normal);
+				float3 viewDir = normalize(UnityWorldSpaceViewDir(i.wPos));
+				float3 reflDir = reflect(-viewDir, normal);
+				float3 lightDirection;
+				float atten = 1.0;
+				lightDirection = normalize(_WorldSpaceLightPos0.xyz);
+				float diffuse = max(0.0, dot(normal, lightDirection) * .5 + .5);
+				float specular = saturate(dot(reflDir, lightDirection));
+				float glitterSpecular = pow(specular, _GlitterPow);
+				specular = pow(specular, _SpecPow);
+
+				// Sparkles
+				float sparkles = Sparkles(viewDir, i.wPos);
+
+				//Sample the texture
+				fixed4 col = tex2D(_MainTex, i.uv) * _Color * diffuse;
+				//Apply Specular and sparkles
+				col += _SpecColor * (saturate(sparkles * glitterSpecular * 5) + specular);
+				//Apply fog
+				UNITY_APPLY_FOG(i.fogCoord, col);
+
+				return col;
+			}
+			ENDCG
 		}
 
-		fixed4 frag(v2f i) : SV_Target
+		Pass
 		{
-			// ****SPARKLE LAYER****
-			//Light Calculation
-			float3 normal = normalize(i.normal);
-			float3 viewDir = normalize(UnityWorldSpaceViewDir(i.wPos));
-			float3 reflDir = reflect(-viewDir, normal);
-			float3 lightDirection;
-			float atten = 1.0;
-			lightDirection = normalize(_WorldSpaceLightPos0.xyz);
-			float diffuse = max(0.0, dot(normal, lightDirection) * .5 + .5);
-			float specular = saturate(dot(reflDir, lightDirection));
-			float glitterSpecular = pow(specular, _GlitterPow);
-			specular = pow(specular, _SpecPow);
+			Tags{ "LightMode" = "ForwardBase" }
+			CGPROGRAM
+			#pragma vertex vert
+			#pragma fragment frag
+			// make fog work
+			#pragma multi_compile_fog
 
-			// Sparkles
-			float sparkles = Sparkles(viewDir, i.wPos);
+			#include "UnityCG.cginc"
 
-			//Sample the texture
-			fixed4 col = tex2D(_MainTex, i.uv) * _Color * diffuse;
-			//Apply Specular and sparkles
-			col += _SpecColor * (saturate(sparkles * glitterSpecular * 5) + specular);
-			//Apply fog
-			UNITY_APPLY_FOG(i.fogCoord, col);
+			struct appdata
+			{
+				float4 vertex : POSITION;
+				float2 uv : TEXCOORD0;
+				float3 normal : NORMAL;
+			};
+	
+			struct v2f
+			{
+				float2 uv : TEXCOORD0;
+				UNITY_FOG_COORDS(1)
+				float4 vertex : SV_POSITION;
+				float3 wPos : TEXCOORD1;
+				float3 pos : TEXCOORD3;
+				float3 normal : NORMAL;
+			};
 
-			return col;
-		}
+			v2f vert(appdata v)
+			{
+				v2f o;
+
+				
+				//o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+				o.wPos = mul(unity_ObjectToWorld, v.vertex).xyz;
+				o.pos = v.vertex;
+				o.normal = mul(unity_ObjectToWorld, float4(v.normal,0)).xyz;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				UNITY_TRANSFER_FOG(o,o.vertex);
+				return o;
+
+				/*
+				foreach vertex v from the mesh do
+				{
+					float4 c = v; // Current vertex
+					float wc = 0.0; // Water coefficient
+					while there are higher neighbor vertices to c do
+					{
+						foreach higher neighbor vertex n do
+						{
+							// Higher with respect to gravity g
+							float4 n; // neighbor vertex
+							float4 cn = normalize(c - n); // normalized vector from c to n
+							float4 p = dot(cn, g); 
+						}
+						Select neighbor nmin for which p is minimal
+						// The most upward n with respect to g
+						if c or nmin ∈ water supply then
+						{
+							d = distance between c and nmin
+							Multiply d by −p
+							if only c or nmin ∈ water supply then
+							{
+								// There is less water since one of the vertices is not in the water supply
+								Divide the result by 2
+							}
+							wc = wc + result
+						}
+						c = nmin
+					}
+					Save wc at vertex v
+				}
+				*/
+			}
+
+			fixed4 frag(v2f i) : SV_Target
+			{
+				fixed4 col = (1.0, 1.0, 1.0, 1.0);
+				
+				//Apply fog
+				UNITY_APPLY_FOG(i.fogCoord, col);
+
+				return col;
+			}
 			ENDCG
 		}
 	}

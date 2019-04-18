@@ -29,8 +29,8 @@ Material:
     m_Floats:
     - _GlitterPow: 1
     - _NoiseScale: 5
-    - _SparkleDepth: 2
-    - _SpecPow: 24
+    - _SparkleDepth: 5
+    - _SpecPow: 50
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _ColorBlue: {r: 0, g: 0, b: 1, a: 0.39215687}
