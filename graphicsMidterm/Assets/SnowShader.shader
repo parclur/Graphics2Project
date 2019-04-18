@@ -15,7 +15,9 @@ Shader "Unlit/SnowShader"
 		//_NoiseMethodType ("Noise Type", )
 		//_Gradient
 
-	_BumpTex("Normalmap", 2D) = "bump" {}
+		_BumpTex("Normal Map", 2D) = "bump" {}
+		_HeightTex("Height Map", 2D) = "height" {}
+		_HeightScale("Height Scale", Range(0, 2)) = 0.005
 	
 		// Color variables
 		_ColorBlue ("Blue", Color) = (0, 0, 1, .05)
@@ -50,15 +52,22 @@ Shader "Unlit/SnowShader"
 		float4 _Color;
 		float4 _Tint;
 
+		float3 myViewDir;
+
 		struct Input
 		{
 			float2 uv_MainTex;
+			float2 uv_HeightTex;
 			float2 uv_BumpTex;
 			float2 uv_DissolveTex;
+			float3 viewDir;
 		};
 
 		void surfaceFunction(Input IN, inout SurfaceOutput o)
 		{
+			//Get view direction
+			myViewDir = IN.viewDir;
+
 			half4 tex = tex2D(_MainTex, IN.uv_MainTex);
 
 			o.Albedo = tex.rgb * _Color.rgb * _Tint.rgb;
@@ -100,6 +109,11 @@ Shader "Unlit/SnowShader"
 			};
 
 			sampler2D _MainTex;
+
+			sampler2D _HeightTex;
+			float _HeightScale;
+			float3 myViewDir;
+
 			float4 _MainTex_ST;
 			float4 _ColorBlue;
 			float4 _ColorGreen;
@@ -111,6 +125,15 @@ Shader "Unlit/SnowShader"
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 				UNITY_TRANSFER_FOG(o,o.vertex);
+
+				//Get height information
+				float4 temp = tex2Dlod(_HeightTex, float4(v.uv, 0, 0));
+				float h = temp.a * _HeightScale - _HeightScale / 2.0;
+				float3 newV = normalize(myViewDir);
+				newV.z += 0.42;
+				h *= (newV.xy / newV.z);
+				o.vertex *= h;
+
 				return o;
 			}
 			
@@ -212,7 +235,7 @@ Shader "Unlit/SnowShader"
 		{
 			float2 uv : TEXCOORD0;
 			UNITY_FOG_COORDS(1)
-				float4 vertex : SV_POSITION;
+			float4 vertex : SV_POSITION;
 			float3 wPos : TEXCOORD1;
 			float3 pos : TEXCOORD3;
 			float3 normal : NORMAL;
@@ -233,6 +256,7 @@ Shader "Unlit/SnowShader"
 			o.normal = mul(unity_ObjectToWorld, float4(v.normal,0)).xyz;
 			o.vertex = UnityObjectToClipPos(v.vertex);
 			UNITY_TRANSFER_FOG(o,o.vertex);
+
 			return o;
 		}
 
