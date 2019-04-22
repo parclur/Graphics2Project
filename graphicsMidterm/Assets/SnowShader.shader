@@ -265,7 +265,7 @@ Shader "Unlit/SnowShader"
 			}
 			ENDCG
 		}
-
+		/*
 		Pass
 		{
 			Tags{ "LightMode" = "ForwardBase" }
@@ -307,7 +307,6 @@ Shader "Unlit/SnowShader"
 				UNITY_TRANSFER_FOG(o,o.vertex);
 				return o;
 
-				/*
 				foreach vertex v from the mesh do
 				{
 					float4 c = v; // Current vertex
@@ -338,7 +337,6 @@ Shader "Unlit/SnowShader"
 					}
 					Save wc at vertex v
 				}
-				*/
 			}
 
 			fixed4 frag(v2f i) : SV_Target
@@ -352,5 +350,6 @@ Shader "Unlit/SnowShader"
 			}
 			ENDCG
 		}
+		*/
 	}
 }
