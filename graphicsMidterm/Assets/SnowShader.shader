@@ -17,7 +17,7 @@ Shader "Unlit/SnowShader"
 
 		_BumpTex("Normal Map", 2D) = "bump" {}
 		_HeightTex("Height Map", 2D) = "height" {}
-		_HeightScale("Height Scale", Range(0, 2)) = 0.005
+		_HeightScale("Height Scale", Range(0, 10)) = 0.005
 	
 		// Color variables
 		_ColorBlue ("Blue", Color) = (0, 0, 1, .05)
@@ -92,6 +92,66 @@ Shader "Unlit/SnowShader"
 			#pragma fragment frag
 			// make fog work
 			#pragma multi_compile_fog
+
+			#include "UnityCG.cginc"
+
+			struct appdata
+			{
+				float4 vertex : POSITION;
+				float2 uv : TEXCOORD0;
+			};
+
+			struct v2f
+			{
+				float2 uv : TEXCOORD0;
+				UNITY_FOG_COORDS(1)
+				float4 vertex : SV_POSITION;
+			};
+
+			sampler2D _MainTex;
+
+			sampler2D _HeightTex;
+			float _HeightScale;
+			float3 myViewDir;
+
+			float4 _MainTex_ST;
+			float4 _ColorBlue;
+			float4 _ColorGreen;
+			float4 _ColorWhite;
+
+			//https://docs.unity3d.com/Manual/SL-SurfaceShaderExamples.html
+			v2f vert(appdata v)
+			{
+				v2f o;
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+				UNITY_TRANSFER_FOG(o,o.vertex);
+
+				//Get height information
+				float4 temp = tex2Dlod(_HeightTex, float4(v.uv, 0, 0));
+				float h = temp.a * _HeightScale;// -_HeightScale / 2.0;
+				float3 newV = normalize(myViewDir);
+				newV.z += 0.42;
+				//h *= (newV.xy / newV.z);
+				o.vertex.z *= h;
+
+				return o;
+			}
+
+			fixed4 frag(v2f i) : SV_Target
+			{
+				return tex2D(_MainTex, i.uv);
+			}
+			ENDCG
+		}
+
+		Pass
+		{
+			CGPROGRAM
+			#pragma vertex vert
+			#pragma fragment frag
+			// make fog work
+			#pragma multi_compile_fog
 			
 			#include "UnityCG.cginc"
 
@@ -128,11 +188,11 @@ Shader "Unlit/SnowShader"
 
 				//Get height information
 				float4 temp = tex2Dlod(_HeightTex, float4(v.uv, 0, 0));
-				float h = temp.a * _HeightScale - _HeightScale / 2.0;
+				float h = temp.a * _HeightScale;// -_HeightScale / 2.0;
 				float3 newV = normalize(myViewDir);
 				newV.z += 0.42;
-				h *= (newV.xy / newV.z);
-				o.vertex *= h;
+				//h *= (newV.xy / newV.z);
+				//o.vertex.z *= h;
 
 				return o;
 			}
@@ -246,6 +306,10 @@ Shader "Unlit/SnowShader"
 		float4 _Color, _SpecColor;
 		float _SpecPow, _GlitterPow;
 
+		sampler2D _HeightTex;
+		float _HeightScale;
+		float3 myViewDir;
+
 		v2f vert(appdata v)
 		{
 			v2f o;
@@ -256,6 +320,15 @@ Shader "Unlit/SnowShader"
 			o.normal = mul(unity_ObjectToWorld, float4(v.normal,0)).xyz;
 			o.vertex = UnityObjectToClipPos(v.vertex);
 			UNITY_TRANSFER_FOG(o,o.vertex);
+
+			//Do it twice makes it darker?
+			////Get height information
+			//float4 temp = tex2Dlod(_HeightTex, float4(v.uv, 0, 0));
+			//float h = temp.a * _HeightScale -_HeightScale / 2.0;
+			//float3 newV = normalize(myViewDir);
+			//newV.z += 0.42;
+			//h *= (newV.xy / newV.z);
+			//o.vertex.z *= h;
 
 			return o;
 		}
