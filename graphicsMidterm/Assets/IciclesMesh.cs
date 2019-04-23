@@ -2,74 +2,18 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(MeshFilter))]
+//[RequireComponent(typeof(MeshFilter))]
 public class IciclesMesh : MonoBehaviour
 {
-    // Old; taken from the sphere cube mesh deformation
-    public float springForce = 20f;
-    public float damping = 5f;
-    
     Mesh sourceSurfaceMesh;
-    Vector3[] originalVertices, displacedVertices;
-    Vector3[] vertexVelocities;
-    
-    float uniformScale = 1f;
+    Vector3[] originalVertices;
     
     void Start()
     {
         sourceSurfaceMesh = GetComponent<MeshFilter>().mesh;
         originalVertices = sourceSurfaceMesh.vertices;
-        displacedVertices = new Vector3[originalVertices.Length];
-        for (int i = 0; i < originalVertices.Length; i++)
-        {
-            displacedVertices[i] = originalVertices[i];
-        }
-        vertexVelocities = new Vector3[originalVertices.Length];
 
         ComputeWaterCoefficient();
-    }
-    
-    void Update()
-    {
-        uniformScale = transform.localScale.x;
-        for (int i = 0; i < displacedVertices.Length; i++)
-        {
-            UpdateVertex(i);
-        }
-        sourceSurfaceMesh.vertices = displacedVertices;
-        sourceSurfaceMesh.RecalculateNormals();
-    }
-
-    // Old; taken from the sphere cube mesh deformation
-    void UpdateVertex(int i)
-    {
-        Vector3 velocity = vertexVelocities[i];
-        Vector3 displacement = displacedVertices[i] - originalVertices[i];
-        displacement *= uniformScale;
-        velocity -= displacement * springForce * Time.deltaTime;
-        velocity *= 1f - damping * Time.deltaTime;
-        vertexVelocities[i] = velocity;
-        displacedVertices[i] += velocity * (Time.deltaTime / uniformScale);
-    }
-
-    // Old; taken from the sphere cube mesh deformation
-    public void AddDeformingForce(Vector3 point, float force)
-    {
-        point = transform.InverseTransformPoint(point);
-        for (int i = 0; i < displacedVertices.Length; i++)
-        {
-            AddForceToVertex(i, point, force);
-        }
-    }
-
-    // Old; taken from the sphere cube mesh deformation
-    void AddForceToVertex(int i, Vector3 point, float force)
-    {
-        Vector3 pointToVertex = displacedVertices[i] - point;
-        pointToVertex *= uniformScale;
-        float attenuatedForce = force / (1f + pointToVertex.sqrMagnitude);
-        float velocity = attenuatedForce * Time.deltaTime;
-        vertexVelocities[i] += pointToVertex.normalized * velocity;
     }
 
     // Reference: https://profs.etsmtl.ca/epaquette/Research/Papers/Gagnon.2011/Gagnon-Icicles-2011.pdf
@@ -85,37 +29,87 @@ public class IciclesMesh : MonoBehaviour
     float[] vertexWaterCoefficients;
     void ComputeWaterCoefficient()
     {
-        int i = 0;
+        //int i = 0;
         // Upward computation
         // foreach vertex v from the mesh do
         foreach (Vector3 v in originalVertices)
         {
-            Debug.Log("Checking Vertices: " + v); // All of the vertices on the sphere are between -0.5 and 0.5
+            Debug.Log("Checking Vertices: " + "Local: " + v + " World: " + transform.localToWorldMatrix * v); // All of the vertices on the sphere are between -0.5 and 0.5
 
             Vector3 c = v; // Current vertex c = v
             float wc = 0.0f; // Water coefficient wc = 0
 
-            //while(c.y < //while there are higher neighbor vertices to c do
-            //foreach higher neighbor vertex n do
-            //// Higher with respect to gravity g
-            Vector3 cn = Vector3.Normalize(Vector3.Distance(n, c)); //cn = normalized vector from c to n; Vector3.Distance(other.position, transform.position)
-            Vector3 p = Vector3.Dot(cn, g);//p = dot product(cn, g)
-            //Select neighbor nmin for which p is minimal
-            //// The most upward n with respect to g
-            //if c or nmin ∈ water supply then
-            //d = distance between c and nmin
-            //Multiply d by −p
-            //if only c or nmin ∈ water supply then
-            ///* There is less water since one of the
-            //vertices is not in the water supply */
-            //Divide the result by 2
-            //wc = wc + result
+            // variables for finding neighboring vertices
+            float minDistance = float.MaxValue;
+            int p = 0;
+            int[] closestVertexIndex = new int[10];
 
-            //c = nmin
+            float dist0;
+            float dist1;
+            float dist2;
+            float dist3;
 
-            vertexWaterCoefficients[i] = wc; //Save wc at vertex v
-            i++;
-        }
+            float vertexIndex0;
+            float vertexIndex1;
+            float vertexIndex2;
+            float vertexIndex3;
+
+            float[] verticesDistances = new float[originalVertices.Length];
+
+            // Find the minimum distance between vertices
+            for (int i = 0; i < originalVertices.Length; i++)
+            {
+                if(v != originalVertices[i])
+                {
+                    // go through vertices and store the distances
+                    verticesDistances[i] = Vector3.Distance(originalVertices[i], v);
+
+                    if (verticesDistances[i] < minDistance)
+                    {
+                        minDistance = verticesDistances[i];
+                    }
+                }
+            }
+
+            Debug.Log("Mindistance: " + minDistance);
+
+            // Find the closest vertices by comparing the distances found in the last loop; there should be 4 with the same distance and they are the neighboring vertices
+            for (int i = 1; i < originalVertices.Length; i++)
+            {
+                // compare and update minimum distance & closest character if required
+                if(verticesDistances[i] == minDistance)
+                {
+                    closestVertexIndex[p] = i;
+
+                    Debug.Log("Closest Vertex Index: " + i);
+                    Debug.Log("Vertex" + p + ": " + originalVertices[closestVertexIndex[p]]);
+
+                    p++;
+                }
+            }
+
+
+        //while(c.y < //while there are higher neighbor vertices to c do
+        //foreach higher neighbor vertex n do
+        //// Higher with respect to gravity g
+        //Vector3 cn = Vector3.Normalize(Vector3.Distance(n, c)); //cn = normalized vector from c to n; Vector3.Distance(other.position, transform.position)
+        //Vector3 p = Vector3.Dot(cn, g);//p = dot product(cn, g)
+        //Select neighbor nmin for which p is minimal
+        //// The most upward n with respect to g
+        //if c or nmin ∈ water supply then
+        //d = distance between c and nmin
+        //Multiply d by −p
+        //if only c or nmin ∈ water supply then
+        ///* There is less water since one of the
+        //vertices is not in the water supply */
+        //Divide the result by 2
+        //wc = wc + result
+
+        //c = nmin
+
+        //vertexWaterCoefficients[i] = wc; //Save wc at vertex v
+        //i++;
+    }
 
         // Downward computation - ineffiecnt
         /*
