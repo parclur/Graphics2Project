@@ -32,7 +32,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _GlitterPow: 1
-    - _HeightScale: 1.99
+    - _HeightScale: 1
     - _NoiseScale: 5
     - _SparkleDepth: 2
     - _SpecPow: 24

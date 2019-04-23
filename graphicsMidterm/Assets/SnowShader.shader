@@ -17,7 +17,7 @@ Shader "Unlit/SnowShader"
 
 		_BumpTex("Normal Map", 2D) = "bump" {}
 		_HeightTex("Height Map", 2D) = "height" {}
-		_HeightScale("Height Scale", Range(0, 10)) = 0.005
+		_HeightScale("Height Scale", Range(0.6, 1.3)) = 0.005
 	
 		// Color variables
 		_ColorBlue ("Blue", Color) = (0, 0, 1, .05)
@@ -36,6 +36,24 @@ Shader "Unlit/SnowShader"
 		_SparkleDepth("Sparkle Depth", Range(0, 5)) = 1
 		_NoiseScale("noise Scale", Range(0, 5)) = 1
 	}
+	//	SubShader{
+	//  Tags { "RenderType" = "Opaque" }
+	//  CGPROGRAM
+	//  #pragma surface surf Lambert vertex:vert
+	//  struct Input {
+	//	  float2 uv_MainTex;
+	//  };
+	//  float _HeightScale;
+	//  void vert(inout appdata_full v) {
+	//	  v.vertex.xyz += v.normal * _HeightScale;
+	//  }
+	//  sampler2D _MainTex;
+	//  void surf(Input IN, inout SurfaceOutput o) {
+	//	  o.Albedo = tex2D(_MainTex, IN.uv_MainTex).rgb;
+	//  }
+	//  ENDCG
+	//	}
+
 	SubShader
 	{
 		Tags{ "RenderType" = "Transparent" }
@@ -92,52 +110,53 @@ Shader "Unlit/SnowShader"
 			#pragma fragment frag
 			// make fog work
 			#pragma multi_compile_fog
-
+		
 			#include "UnityCG.cginc"
-
+		
 			struct appdata
 			{
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
+				float3 normal : NORMAL;
 			};
-
+		
 			struct v2f
 			{
 				float2 uv : TEXCOORD0;
 				UNITY_FOG_COORDS(1)
 				float4 vertex : SV_POSITION;
+				float3 normal : NORMAL;
 			};
-
+		
 			sampler2D _MainTex;
-
+		
 			sampler2D _HeightTex;
 			float _HeightScale;
 			float3 myViewDir;
-
+		
 			float4 _MainTex_ST;
 			float4 _ColorBlue;
 			float4 _ColorGreen;
 			float4 _ColorWhite;
-
+		
 			//https://docs.unity3d.com/Manual/SL-SurfaceShaderExamples.html
 			v2f vert(appdata v)
 			{
 				v2f o;
-				o.vertex = UnityObjectToClipPos(v.vertex);
-				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-				UNITY_TRANSFER_FOG(o,o.vertex);
-
+				//o.vertex = UnityObjectToClipPos(v.vertex);
+				//o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+				//UNITY_TRANSFER_FOG(o,o.vertex);
+		
 				//Get height information
 				float4 temp = tex2Dlod(_HeightTex, float4(v.uv, 0, 0));
-				float h = temp.a * _HeightScale;// -_HeightScale / 2.0;
-				float3 newV = normalize(myViewDir);
-				newV.z += 0.42;
-				//h *= (newV.xy / newV.z);
-				o.vertex.z *= h;
+				float h = ((temp.r + temp.g + temp.b) / 3) * _HeightScale;
+
+				v.vertex *= (normalize(h) * (_HeightScale/2)) * (normalize((temp.r + temp.g + temp.b) / 3) * temp.r + temp.g + temp.b);
+				o.vertex = UnityObjectToClipPos(v.vertex);
 
 				return o;
 			}
-
+		
 			fixed4 frag(v2f i) : SV_Target
 			{
 				return tex2D(_MainTex, i.uv);
