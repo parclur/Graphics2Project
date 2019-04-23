@@ -5,6 +5,7 @@ using UnityEngine;
 [RequireComponent(typeof(MeshFilter))]
 public class IciclesMesh : MonoBehaviour
 {
+    // Old; taken from the sphere cube mesh deformation
     public float springForce = 20f;
     public float damping = 5f;
     
@@ -38,7 +39,8 @@ public class IciclesMesh : MonoBehaviour
         sourceSurfaceMesh.vertices = displacedVertices;
         sourceSurfaceMesh.RecalculateNormals();
     }
-    
+
+    // Old; taken from the sphere cube mesh deformation
     void UpdateVertex(int i)
     {
         Vector3 velocity = vertexVelocities[i];
@@ -49,7 +51,8 @@ public class IciclesMesh : MonoBehaviour
         vertexVelocities[i] = velocity;
         displacedVertices[i] += velocity * (Time.deltaTime / uniformScale);
     }
-    
+
+    // Old; taken from the sphere cube mesh deformation
     public void AddDeformingForce(Vector3 point, float force)
     {
         point = transform.InverseTransformPoint(point);
@@ -58,7 +61,8 @@ public class IciclesMesh : MonoBehaviour
             AddForceToVertex(i, point, force);
         }
     }
-    
+
+    // Old; taken from the sphere cube mesh deformation
     void AddForceToVertex(int i, Vector3 point, float force)
     {
         Vector3 pointToVertex = displacedVertices[i] - point;
@@ -73,42 +77,100 @@ public class IciclesMesh : MonoBehaviour
     Vector3[] rayOrigins;
     int[] intersectionPoints;
     Ray[] ray;
+    int[] triangles;
+
+
+    //Vector3 c = new Vector3(0,0,0);
+    // Determines the water coefficient of each vertex of the object
+    float[] vertexWaterCoefficients;
     void ComputeWaterCoefficient()
     {
-        // Rain comes from a source surface ss provided by the user
-        // sourceSurfaceMesh;
+        int i = 0;
+        // Upward computation
+        // foreach vertex v from the mesh do
+        foreach (Vector3 v in originalVertices)
+        {
+            Debug.Log("Checking Vertices: " + v); // All of the vertices on the sphere are between -0.5 and 0.5
 
-        // Rain drops are computed using ray casting from the source surface according to the gravity vector. Ray origins are randomly distributed on the source surface based on the number of rays provided by the user
-        // source surface = deformingMesh
-        // gravity vector = vector 3(0.0f, -9.8f, 0.0f);
-        Vector3 gravityVector = new Vector3(0.0f, -9.8f, 0.0f); //ft per sec
-        // number of rays = 10
+            Vector3 c = v; // Current vertex c = v
+            float wc = 0.0f; // Water coefficient wc = 0
+
+            //while(c.y < //while there are higher neighbor vertices to c do
+            //foreach higher neighbor vertex n do
+            //// Higher with respect to gravity g
+            Vector3 cn = Vector3.Normalize(Vector3.Distance(n, c)); //cn = normalized vector from c to n; Vector3.Distance(other.position, transform.position)
+            Vector3 p = Vector3.Dot(cn, g);//p = dot product(cn, g)
+            //Select neighbor nmin for which p is minimal
+            //// The most upward n with respect to g
+            //if c or nmin ∈ water supply then
+            //d = distance between c and nmin
+            //Multiply d by −p
+            //if only c or nmin ∈ water supply then
+            ///* There is less water since one of the
+            //vertices is not in the water supply */
+            //Divide the result by 2
+            //wc = wc + result
+
+            //c = nmin
+
+            vertexWaterCoefficients[i] = wc; //Save wc at vertex v
+            i++;
+        }
+
+        // Downward computation - ineffiecnt
+        /*
+        // (1) Rain comes from a source surface ss provided by the user
+        // sourceSurfaceMesh defined above;
+
+        // (2) Rain drops are computed using ray casting from the source surface according to the gravity vector. Ray origins are randomly distributed on the source surface based on the number of rays provided by the user
+        Vector3 gravityVector = new Vector3(0.0f, -9.8f, 0.0f); // m/s^2; uses just a downward force
         int numberOfRays = 10;
-        // ray origins = 
-        //Vector3[] rayOrigins;
+
         for (int i = 0; i < numberOfRays; i++)
         {
-            rayOrigins[i] = GetRandomPointOnMesh(sourceSurfaceMesh);
+            rayOrigins[i] = GetRandomPointOnMesh(sourceSurfaceMesh); // for each desired ray, calculates a random position on the source surface; stores it in an array in case we need to access the origin point later
 
-            // create rays
-            ray[i] = new Ray(rayOrigins[i], gravityVector);
-            // apply gravity to rays
-            //Ray.origin and ray.direction
+            ray[i] = new Ray(rayOrigins[i], gravityVector); // creates rays with the random origin and gives direction based on the gravity vector
         }
 
-        // At each intersection point, upward facing vertices at a distance lower than an influence radius rii are added to the water supply
-        // check is ray is hitting the mesh
-        // if yes intersection points 
+        // (3) At each intersection point, upward facing vertices at a distance lower than an influence radius rii are added to the water supply
+        RaycastHit hit;
         for (int i = 0; i < numberOfRays; i++)
         {
-            intersectionPoints[i] = GetClosestVertex(hit, );
+            // For each ray, check is ray is hitting the mesh
+            if (Physics.Raycast(ray[i], out hit))
+            {
+                // If yes, get the closest vertex as the intersection point and store in an array
+                intersectionPoints[i] = GetClosestVertex(hit, );
+
+                // For each intersection point, check if it is lower than the influence radius
+                // If yes, store to the water supply
+            }
         }
-        // influence radius
-        // upward facing vertices
-        // all vertices
-        // distance check
-        // water supply array
+        // To visualize the water supply, give the vertex a color and interpolate between the colors of the vertices
+        */
     }
+
+    //int[] GetRaycastHitTriangles(RaycastHit hit)
+    //{
+    //    MeshCollider meshCollider = hit.collider as MeshCollider;
+    //    if (meshCollider == null || meshCollider.sharedMesh == null)
+    //        return;
+    //
+    //    Mesh mesh = meshCollider.sharedMesh;
+    //    Vector3[] vertices = mesh.vertices;
+    //    int[] triangles = mesh.triangles;
+    //    Vector3 p0 = vertices[triangles[hit.triangleIndex * 3 + 0]];
+    //    Vector3 p1 = vertices[triangles[hit.triangleIndex * 3 + 1]];
+    //    Vector3 p2 = vertices[triangles[hit.triangleIndex * 3 + 2]];
+    //    Transform hitTransform = hit.collider.transform;
+    //    p0 = hitTransform.TransformPoint(p0);
+    //    p1 = hitTransform.TransformPoint(p1);
+    //    p2 = hitTransform.TransformPoint(p2);
+    //    Debug.DrawLine(p0, p1);
+    //    Debug.DrawLine(p1, p2);
+    //    Debug.DrawLine(p2, p0);
+    //}
 
     // Reference: https://answers.unity.com/questions/1305031/pinpointing-one-vertice-with-raycasthit.html
     public static int GetClosestVertex(RaycastHit aHit, int[] aTriangles)

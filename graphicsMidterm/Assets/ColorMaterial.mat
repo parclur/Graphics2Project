@@ -5,7 +5,8 @@ Material:
   serializedVersion: 6
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
   m_Name: ColorMaterial
   m_Shader: {fileID: 4800000, guid: 009fc5902544a9048a0f513b9a1b9f09, type: 3}
   m_ShaderKeywords: 
@@ -33,7 +34,7 @@ Material:
     - _SpecPow: 50
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _ColorBlue: {r: 0, g: 0, b: 1, a: 0.39215687}
-    - _ColorGreen: {r: 0, g: 1, b: 0, a: 0.39215687}
+    - _ColorBlue: {r: 0.495283, g: 0.495283, b: 1, a: 0.39215687}
+    - _ColorGreen: {r: 0.5330188, g: 1, b: 0.5330188, a: 0.39215687}
     - _ColorWhite: {r: 1, g: 1, b: 1, a: 0.39215687}
     - _SpecColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
