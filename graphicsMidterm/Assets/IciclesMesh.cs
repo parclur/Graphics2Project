@@ -5,31 +5,78 @@ using UnityEngine;
 //[RequireComponent(typeof(MeshFilter))]
 public class IciclesMesh : MonoBehaviour
 {
-    Mesh sourceSurfaceMesh;
+    // Mesh Information
+    public Mesh sourceSurfaceMesh;
     Vector3[] originalVertices;
-    
+
+    // Water Supply
+    public Vector3[] rayOrigins;
+    int[] intersectionPoints;
+    Ray[] ray;
+    int[] triangles;
+    RaycastHit hit;
+
     void Start()
     {
-        sourceSurfaceMesh = GetComponent<MeshFilter>().mesh;
+        sourceSurfaceMesh = GetComponent<MeshFilter>().sharedMesh;
         originalVertices = sourceSurfaceMesh.vertices;
+        triangles = sourceSurfaceMesh.triangles;
 
         ComputeWaterCoefficient();
     }
 
     // Reference: https://profs.etsmtl.ca/epaquette/Research/Papers/Gagnon.2011/Gagnon-Icicles-2011.pdf
     // The goal is to determine, for each vertex, if the water reaches it and to compute an approximate amount of water.
-    Vector3[] rayOrigins;
-    int[] intersectionPoints;
-    Ray[] ray;
-    int[] triangles;
 
+    Vector3 gravityVector = new Vector3(0.0f, -9.8f, 0.0f); // m/s^2; uses just a downward force
+    int numberOfRays = 10;
 
     //Vector3 c = new Vector3(0,0,0);
     // Determines the water coefficient of each vertex of the object
     float[] vertexWaterCoefficients;
     void ComputeWaterCoefficient()
     {
+        // Water Supply Definition
+        // Rain comes from a source surface ss provided by the user
+        // sourceSurfaceMesh defined above;
+
+        // Rain drops are computed using ray casting from the source surface according to the gravity vector. Ray origins are randomly distributed on the source surface based on the number of rays provided by the user
+        for (int i = 0; i < numberOfRays; i++)
+        {
+            //rayOrigins[i] = GetRandomPointOnMesh(sourceSurfaceMesh); // for each desired ray, calculates a random position on the source surface; stores it in an array in case we need to access the origin point later
+            Debug.Log(GetRandomPointOnMesh(sourceSurfaceMesh)); // for each desired ray, calculates a random position on the source surface; stores it in an array in case we need to access the origin point later
+
+            ray[i] = new Ray(GetRandomPointOnMesh(sourceSurfaceMesh), gravityVector); // creates rays with the random origin and gives direction based on the gravity vector
+
+            // At each intersection point, upward facing vertices at a distance lower than an influence radius rii are added to the water supply
+            
+        }
+
+        // (3) At each intersection point, upward facing vertices at a distance lower than an influence radius rii are added to the water supply
+        RaycastHit hit;
+        
+        for (int i = 0; i < numberOfRays; i++)
+        {
+            // For each ray, check is ray is hitting the mesh
+            //if (Physics.Raycast(ray[i], out hit))
+            //{
+                // If yes, get the closest vertex as the intersection point and store in an array
+            //    intersectionPoints[i] = GetClosestVertex(hit, triangles);
+
+                // For each intersection point, check if it is lower than the influence radius
+                // If yes, store to the water supply
+            //}
+        }
+        // To visualize the water supply, give the vertex a color and interpolate between the colors of the vertices
+
+
+
+
+
+
+        // This part simulates the water flow; water flow is computed only from vertex to vertex along the edges
         //int i = 0;
+        int higherVertexIndex = 0;
         // Upward computation
         // foreach vertex v from the mesh do
         foreach (Vector3 v in originalVertices)
@@ -44,22 +91,12 @@ public class IciclesMesh : MonoBehaviour
             int p = 0;
             int[] closestVertexIndex = new int[10];
 
-            float dist0;
-            float dist1;
-            float dist2;
-            float dist3;
-
-            float vertexIndex0;
-            float vertexIndex1;
-            float vertexIndex2;
-            float vertexIndex3;
-
             float[] verticesDistances = new float[originalVertices.Length];
 
             // Find the minimum distance between vertices
             for (int i = 0; i < originalVertices.Length; i++)
             {
-                if(v != originalVertices[i])
+                if (v != originalVertices[i])
                 {
                     // go through vertices and store the distances
                     verticesDistances[i] = Vector3.Distance(originalVertices[i], v);
@@ -77,7 +114,7 @@ public class IciclesMesh : MonoBehaviour
             for (int i = 1; i < originalVertices.Length; i++)
             {
                 // compare and update minimum distance & closest character if required
-                if(verticesDistances[i] == minDistance)
+                if (verticesDistances[i] == minDistance)
                 {
                     closestVertexIndex[p] = i;
 
@@ -89,102 +126,29 @@ public class IciclesMesh : MonoBehaviour
             }
 
 
-        //while(c.y < //while there are higher neighbor vertices to c do
-        //foreach higher neighbor vertex n do
-        //// Higher with respect to gravity g
-        //Vector3 cn = Vector3.Normalize(Vector3.Distance(n, c)); //cn = normalized vector from c to n; Vector3.Distance(other.position, transform.position)
-        //Vector3 p = Vector3.Dot(cn, g);//p = dot product(cn, g)
-        //Select neighbor nmin for which p is minimal
-        //// The most upward n with respect to g
-        //if c or nmin ∈ water supply then
-        //d = distance between c and nmin
-        //Multiply d by −p
-        //if only c or nmin ∈ water supply then
-        ///* There is less water since one of the
-        //vertices is not in the water supply */
-        //Divide the result by 2
-        //wc = wc + result
+            //while(c.y < //while there are higher neighbor vertices to c do
+            //foreach higher neighbor vertex n do
+            //// Higher with respect to gravity g
+            //Vector3 cn = Vector3.Normalize(Vector3.Distance(n, c)); //cn = normalized vector from c to n; Vector3.Distance(other.position, transform.position)
+            //Vector3 p = Vector3.Dot(cn, g);//p = dot product(cn, g)
+            //Select neighbor nmin for which p is minimal
+            //// The most upward n with respect to g
+            //if c or nmin ∈ water supply then
+            //d = distance between c and nmin
+            //Multiply d by −p
+            //if only c or nmin ∈ water supply then
+            ///* There is less water since one of the
+            //vertices is not in the water supply */
+            //Divide the result by 2
+            //wc = wc + result
 
-        //c = nmin
+            //c = nmin
 
-        //vertexWaterCoefficients[i] = wc; //Save wc at vertex v
-        //i++;
+            //vertexWaterCoefficients[i] = wc; //Save wc at vertex v
+            //i++;
+        }
     }
 
-        // Downward computation - ineffiecnt
-        /*
-        // (1) Rain comes from a source surface ss provided by the user
-        // sourceSurfaceMesh defined above;
-
-        // (2) Rain drops are computed using ray casting from the source surface according to the gravity vector. Ray origins are randomly distributed on the source surface based on the number of rays provided by the user
-        Vector3 gravityVector = new Vector3(0.0f, -9.8f, 0.0f); // m/s^2; uses just a downward force
-        int numberOfRays = 10;
-
-        for (int i = 0; i < numberOfRays; i++)
-        {
-            rayOrigins[i] = GetRandomPointOnMesh(sourceSurfaceMesh); // for each desired ray, calculates a random position on the source surface; stores it in an array in case we need to access the origin point later
-
-            ray[i] = new Ray(rayOrigins[i], gravityVector); // creates rays with the random origin and gives direction based on the gravity vector
-        }
-
-        // (3) At each intersection point, upward facing vertices at a distance lower than an influence radius rii are added to the water supply
-        RaycastHit hit;
-        for (int i = 0; i < numberOfRays; i++)
-        {
-            // For each ray, check is ray is hitting the mesh
-            if (Physics.Raycast(ray[i], out hit))
-            {
-                // If yes, get the closest vertex as the intersection point and store in an array
-                intersectionPoints[i] = GetClosestVertex(hit, );
-
-                // For each intersection point, check if it is lower than the influence radius
-                // If yes, store to the water supply
-            }
-        }
-        // To visualize the water supply, give the vertex a color and interpolate between the colors of the vertices
-        */
-    }
-
-    //int[] GetRaycastHitTriangles(RaycastHit hit)
-    //{
-    //    MeshCollider meshCollider = hit.collider as MeshCollider;
-    //    if (meshCollider == null || meshCollider.sharedMesh == null)
-    //        return;
-    //
-    //    Mesh mesh = meshCollider.sharedMesh;
-    //    Vector3[] vertices = mesh.vertices;
-    //    int[] triangles = mesh.triangles;
-    //    Vector3 p0 = vertices[triangles[hit.triangleIndex * 3 + 0]];
-    //    Vector3 p1 = vertices[triangles[hit.triangleIndex * 3 + 1]];
-    //    Vector3 p2 = vertices[triangles[hit.triangleIndex * 3 + 2]];
-    //    Transform hitTransform = hit.collider.transform;
-    //    p0 = hitTransform.TransformPoint(p0);
-    //    p1 = hitTransform.TransformPoint(p1);
-    //    p2 = hitTransform.TransformPoint(p2);
-    //    Debug.DrawLine(p0, p1);
-    //    Debug.DrawLine(p1, p2);
-    //    Debug.DrawLine(p2, p0);
-    //}
-
-    // Reference: https://answers.unity.com/questions/1305031/pinpointing-one-vertice-with-raycasthit.html
-    public static int GetClosestVertex(RaycastHit aHit, int[] aTriangles)
-    {
-        var b = aHit.barycentricCoordinate;
-        int index = aHit.triangleIndex * 3;
-        if (aTriangles == null || index < 0 || index + 2 >= aTriangles.Length)
-            return -1;
-        if (b.x > b.y)
-        {
-            if (b.x > b.z)
-                return aTriangles[index]; // x
-            else
-                return aTriangles[index + 2]; // z
-        }
-        else if (b.y > b.z)
-            return aTriangles[index + 1]; // y
-        else
-            return aTriangles[index + 2]; // z
-    }
 
     // Refer to for random points for next two functions: https://gist.github.com/v21/5378391
     Vector3 GetRandomPointOnMesh(Mesh mesh)
@@ -231,10 +195,10 @@ public class IciclesMesh : MonoBehaviour
             r = 1 - r;
             s = 1 - s;
         }
+
         //and then turn them back to a Vector3
         Vector3 pointOnMesh = a + r * (b - a) + s * (c - a);
         return pointOnMesh;
-
     }
 
     float[] GetTriSizes(int[] tris, Vector3[] verts)
@@ -246,43 +210,30 @@ public class IciclesMesh : MonoBehaviour
             sizes[i] = .5f * Vector3.Cross(verts[tris[i * 3 + 1]] - verts[tris[i * 3]], verts[tris[i * 3 + 2]] - verts[tris[i * 3]]).magnitude;
         }
         return sizes;
+    }
 
-        /*
-         * 
-         * more readably:
-         * 
-for(int ii = 0 ; ii < indices.Length; ii+=3)
-{
-    Vector3 A = Points[indices[ii]];
-    Vector3 B = Points[indices[ii+1]];
-    Vector3 C = Points[indices[ii+2]];
-    Vector3 V = Vector3.Cross(A-B, A-C);
-    Area += V.magnitude * 0.5f;
-}
-         * 
-         * 
-         * */
+void DripPointsIdentification()
+    {
+
+    }
+
+    // Reference: https://answers.unity.com/questions/1305031/pinpointing-one-vertice-with-raycasthit.html
+    public static int GetClosestVertex(RaycastHit aHit, int[] aTriangles)
+    {
+        var b = aHit.barycentricCoordinate;
+        int index = aHit.triangleIndex * 3;
+        if (aTriangles == null || index < 0 || index + 2 >= aTriangles.Length)
+            return -1;
+        if (b.x > b.y)
+        {
+            if (b.x > b.z)
+                return aTriangles[index]; // x
+            else
+                return aTriangles[index + 2]; // z
+        }
+        else if (b.y > b.z)
+            return aTriangles[index + 1]; // y
+        else
+            return aTriangles[index + 2]; // z
     }
 }
-
-/*
-The first stage of the proposed method is the computation of the water flow. The goal is to determine, for
-each vertex, if the water reaches it and to compute an
-approximate amount of water. The water flow is used
-to select the locations where to grow the icicles and the
-amount of water is used to determine the growth rate
-of the icicles.
-The distribution of water is governed by two factors:
-water reaches the surface providing the water supply,
-and then flows on the surface until it accumulates in a
-concave area or falls from the surface. When considering icicles, rain is one of the most important source of
-water [7]. In our implementation, the rain comes from
-a source surface ss provided by the user. Rain drops
-are computed using ray casting from the source surface according to the gravity vector. Ray origins are
-randomly distributed on the source surface based on
-the number of rays provided by the user. At each intersection point, upward facing vertices at a distance
-lower than an influence radius rii are added to the water supply. Visualization of the results is provided by
-assigning a red color to the vertices in the water supply and a white color to the others. Figure 2 presents
-an example of water supply in which the polygons are
-rendered by interpolating the colors of the vertices.
- */
