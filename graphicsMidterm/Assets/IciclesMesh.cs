@@ -5,6 +5,53 @@ using UnityEngine;
 //[RequireComponent(typeof(MeshFilter))]
 public class IciclesMesh : MonoBehaviour
 {
+    // Procedural Icicles
+    // Water supply
+    // Source surface is a plane above the object. This is the water source and contains the origins for the raycasts that will then be sent down and checked to see if it is hitting the mesh of the model
+    // Once the raycast hits the model mesh, it grabs the closet upward facing vertex at a distance lower than an influence radius and adds that to the water supply which is an array of vertices from the mesh or maybe their indexes
+    // To vizualize, assign red to vertices in the water supply and white to vertices out and interpolate between
+
+    // Water coefficient (provides an approximate quantity of water for each vertex)
+    // At each vertex, find if there are vertices higher on the mesh. Move around the mesh by selecting the neighboring vertex that has the smallest calculated p value
+    // If the current vertex or the pmin neighbor is part of the water supply found earlier then multiply the distance by -p
+    // if only c or only pmin neighbor is in the water supply, then divide by 2
+    // calculate the rest of the water coeffient
+    // save the water coefficient at that vertex
+    // To visualize red and blue vertices correspond respectively to lower and higher values of wc
+
+    // Drip points identification
+    // Drip limit dl is set by the user as an angle with respect to the gravity vector. This angle is used to determine the necessary angle of a vertex for water to drip off at
+    // Find the drip region using polygons which have at least on vertives with a non-zero water coefficient and for which all normal  vectors of all their vertices satisfy the drip criterion
+    // specify the number of icicles
+    // using the icicle number, a set of points are randomly distributed on the drip region found earlier. these are the drip points
+
+    // Icicles trajectories definition ( proposes rules and control parameters that allow the creation of several types of icicles)
+    // A trajectory is created at each drip point and using the water coefficient, the final length of the icicle can be computed directly
+    // The user can adjust the appearance of the icicles with a few parameters: curvature angle c, probability of subdivision d, and angle of dispersion a
+    // L-System Rules:
+    // ω : FX
+    // p1' :X  (1-d)->  + (c)FFF/(a)X                   corresponds to the growth of the icicle
+    // p1'' :X  (d)-> [+(c)+(30◦)F-(30◦)FX]A            creates a new branch
+    // p2 :A  -> +(c)FFF\(a)X                           used to grow the main trunk after the creation of a branch
+    // Breaking down the role of each parameter
+    // Parameter c represents the angle of curvature. While growing, the icicle is rotated by this angle at each step; For linear icicles, c should have a low value
+    // Parameter a is also a rotation done at each growth step, but is a rotation (roll) around a trajectory.It affects the irregularity of the branch growth direction as well as the spread of the icicle branches. computed from the user specified angle au as a = au × 137.5◦/360◦
+    // Parameter d represents the probability of creating a new branch
+
+    // Surface Creation (surface is created around the trajectory from the previous stage by computing the varying radius along the trajectory)
+    // Icicle profile
+    // three parameters are provided to the user: as and fs which respectively control the amplitude and the frequency of the undulation, and t, which controls the conical shape
+    // R(x) = tip+ (L-x) * t + as * sin(x * fs)             For a given position x, R(x) provides the radius of the icicle; tip is the radius of the tip of the icicle adjusted to a value of 2.44millimeters
+    // Modeling
+    // Metaballs are placed on the points of trajectory and radii are derived from the profile function; poins are random within a distance nc in the plane perpendiculat to the trajectory
+    // Base of the Icicle
+    // To create the area of the base of the icicle, a set of metaballs is distributed over the surface of the object around the drip point, up to a distance eb specified by the user
+    // The number of metaballs distributed on the surface is also specified by the user and is noted nmb
+    // radius of each metaball is calculated with
+    // rb = (eb-d)^2/(eb)^2 * wc
+
+
+
     // Mesh Information
     public Mesh sourceSurfaceMesh;
     Vector3[] originalVertices;
