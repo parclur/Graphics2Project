@@ -1,4 +1,6 @@
-﻿//This file was created by Claire Yeash and Zach Phillips
+﻿// Upgrade NOTE: replaced '_Object2World' with 'unity_ObjectToWorld'
+
+//This file was created by Claire Yeash and Zach Phillips
 Shader "Unlit/SnowShader"
 {
 	Properties
@@ -127,14 +129,6 @@ Shader "Unlit/SnowShader"
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 				UNITY_TRANSFER_FOG(o,o.vertex);
 
-				//Get height information
-				float4 temp = tex2Dlod(_HeightTex, float4(v.uv, 0, 0));
-				float h = temp.a * _HeightScale;// -_HeightScale / 2.0;
-				float3 newV = normalize(myViewDir);
-				newV.z += 0.42;
-				//h *= (newV.xy / newV.z);
-				//o.vertex.z *= h;
-
 				return o;
 			}
 			
@@ -210,6 +204,8 @@ Shader "Unlit/SnowShader"
 			}
 			ENDCG
 		}
+
+		//GrabPass{ "_GrabTexture" }
 
 		// Reference: https://github.com/LasseWestmark/Sparkle-Shader-Unity
 		Pass
@@ -304,6 +300,7 @@ Shader "Unlit/SnowShader"
 			#pragma multi_compile_fog
 		
 			#include "UnityCG.cginc"
+			#include "UnityLightingCommon.cginc" // for _LightColor0
 		
 			struct appdata
 			{
@@ -319,6 +316,9 @@ Shader "Unlit/SnowShader"
 				float4 vertex : SV_POSITION;
 				float3 normal : NORMAL;
 				float4 grabUv : TEXCOORD1;
+				float3 worldPos : TEXCOORD2;
+
+				fixed4 diff : COLOR0; // diffuse lighting color
 			};
 		
 			sampler2D _MainTex;
@@ -336,13 +336,22 @@ Shader "Unlit/SnowShader"
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 				UNITY_TRANSFER_FOG(o,o.vertex);
+				o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
 		
 				//Get height information
 				float4 temp = tex2Dlod(_HeightTex, float4(v.uv, 0, 0));
 				float h = (normalize(temp.r) + normalize(temp.g) + temp.b) * _HeightScale;
 		
+				// get vertex normal in world space
+				half3 worldNormal = UnityObjectToWorldNormal(v.normal);
+				// dot product between normal and light direction for
+				// standard diffuse (Lambert) lighting
+				half nl = max(0, dot(worldNormal, _WorldSpaceLightPos0.xyz));
+				// factor in the light color
+				o.diff = nl * _LightColor0;
+				
 				v.vertex *= h;
-		
+
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				o.grabUv = ComputeGrabScreenPos(o.vertex);
 		
@@ -353,9 +362,37 @@ Shader "Unlit/SnowShader"
 
 			fixed4 frag(v2f i) : SV_Target
 			{
-				fixed4 col = tex2D(_GrabTexture, i.grabUv);
-				//fixed4 col = (1.0, 1.0, 0.0, 1.0);
-				return col;
+				//half3 worldViewDir = normalize(UnityWorldSpaceViewDir(i.worldPos));
+
+				//tex2D gives the nice color, but not the uniformness
+				fixed4 test = tex2D(_GrabTexture, i.grabUv);// *i.uv);// float4(i.grabUv.xyz * worldViewDir, 1.0));
+
+				//tex2Dproj gives uniform but not the nice color
+				fixed4 col = tex2Dproj(_GrabTexture, i.grabUv);// *i.uv);// float4(i.grabUv.xyz * worldViewDir, 1.0));
+				//col.xyz = worldViewDir;
+				//col *= 2;
+				//col.a = .1;
+				//fixed4 col = (0.1, 0.1, 0.1, 0.5);
+				//col *= tex;
+				//col.a = 8;
+			//col *= i.diff;
+			//col.xyz *= 2;
+			//col.a = .3;
+			//col.xyz += WorldSpaceViewDir(col);
+
+				//solution? just do both lol
+				float4 ahh = normalize(mul(test, col));
+
+				//add lighting fanciness
+				ahh *= i.diff;
+
+				//attempt 3 to add color back
+				//ahh.xyz = tex2D(_GrabTexture, i.uv).xyz;
+
+				//alpha and all that
+				ahh.a = .7;
+
+			return ahh;
 			}
 			ENDCG
 		}
