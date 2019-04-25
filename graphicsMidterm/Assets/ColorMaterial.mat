@@ -23,7 +23,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _HeightTex:
-        m_Texture: {fileID: 2800000, guid: 8c31b42e00f15e64eb7c81a0c0c3b6c6, type: 3}
+        m_Texture: {fileID: 2800000, guid: d795142b58cce334098cf7161cb559a2, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
@@ -32,7 +32,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _GlitterPow: 1
-    - _HeightScale: 1
+    - _HeightScale: 0.48
     - _NoiseScale: 5
     - _SparkleDepth: 2
     - _SpecPow: 24
@@ -41,4 +41,5 @@ Material:
     - _ColorBlue: {r: 0, g: 0, b: 1, a: 0.39215687}
     - _ColorGreen: {r: 0, g: 1, b: 0, a: 0.39215687}
     - _ColorWhite: {r: 1, g: 1, b: 1, a: 0.39215687}
+    - _FinalColor: {r: 0.5367973, g: 0.14538093, b: 0.9339623, a: 1}
     - _SpecColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
