@@ -58,6 +58,7 @@ public class IciclesMesh : MonoBehaviour
     // Model Parameters
     Mesh modelMesh;
     Vector3[] originalVertices;
+    Vector3[] normals;
 
     // Water Supply Parameters
     public GameObject ss; // Water source surface (must be a plane)
@@ -65,18 +66,21 @@ public class IciclesMesh : MonoBehaviour
     Vector3 g = new Vector3(0, -1, 0); // Gravity vector
     int nr = 100; // Number of rays (500)
     float rii = 0.1f; // Radius of influence at the intersection
+    Vector3[] waterSupplyVertices;
 
     void Start()
     {
         // Model Parameters
         modelMesh = GetComponent<MeshFilter>().mesh;
         originalVertices = modelMesh.vertices;
+        normals = modelMesh.normals;
 
         // Water Supply Parameters
         ssMesh = ss.GetComponent<MeshFilter>().mesh;
         Physics.IgnoreLayerCollision(4, 4, true);
+        waterSupplyVertices = new Vector3[nr];
 
-        WaterSupply();
+        CalculateWaterSupply();
     }
 
     // Gets a random point on the plane to simulate the random positions of raindrops
@@ -91,8 +95,11 @@ public class IciclesMesh : MonoBehaviour
         return newVec;
     }
 
-    void WaterSupply()
+    // Finds the vertices that are "in" the water supply AKA where precipation would be hitting
+    void CalculateWaterSupply()
     {
+        int wsIndex = 0;
+
         for (int i = 0; i < nr; i++)
         {
             // Creates the rays and directs them with the gravity vector
@@ -105,40 +112,47 @@ public class IciclesMesh : MonoBehaviour
             // At each intersection point, upward facing vertices at a distance lower than an influence radius rii are added to the water supply
             if(Physics.Raycast(ray, out hit))
             {
+                // Transform the raycast hit point from world space to object space
                 Vector3 hitPointLocal = transform.InverseTransformPoint(hit.point);
 
+                // Only check rays that hit the gameObject
                 if (hit.collider != null)
                 {
                     Debug.Log(hit.collider.gameObject.name);
-
+                    
                     for (int j = 0; j < originalVertices.Length; j++)
                     {
-                        if (originalVertices[j].x < hitPointLocal.x + rii)
+                        // Checks all vertices to see if they are within the influence radius around the hit point
+                        if (Vector3.Distance(originalVertices[j], hitPointLocal) < rii)
                         {
-                            Debug.Log("Hit Point: " + hitPointLocal + " Vertex: " + originalVertices[j]);
-                        }
+                            // Checks if a vertex is upward facing
+                            if(normals[j].y > 0)
+                            {
+                                Debug.Log("Hit Point: " + hitPointLocal + " Vertex: " + originalVertices[j] + "Normal: " + normals[j]);
 
-                        else if (originalVertices[j].y < hitPointLocal.y + rii)
-                        {
-                            Debug.Log("Hit Point: " + hitPointLocal + " Vertex: " + originalVertices[j]);
-                        }
-
-                        else if (originalVertices[j].z < hitPointLocal.z + rii)
-                        {
-                            Debug.Log("Hit Point: " + hitPointLocal + " Vertex: " + originalVertices[j]);
+                                // Add the vertex to the water supply
+                                waterSupplyVertices[wsIndex] = originalVertices[j];
+                                wsIndex++;
+                            }
                         }
                     }
                 }
-                // check for vertices within influence radius around the hit point
-                // check if vertex is upward facing
-                // if a vertex is within the radius and upward facing, add it to the water supply
             }
-            // Once the raycast hits the model mesh, it grabs the closet upward facing vertex at a distance lower than an influence radius and adds that to the water supply which is an array of vertices from the mesh or maybe their indexes
-            // To vizualize, assign red to vertices in the water supply and white to vertices out and interpolate between
         }
     }
 
+    // To vizualize the water supply, assign red to vertices in the water supply and white to vertices out and interpolate between
+    void WaterSupplyVisualization()
+    {
+        
+    }
+
     // Water coefficient (provides an approximate quantity of water for each vertex)
+    void CalculateWaterCoefficient()
+    {
+
+    }
+
     // At each vertex, find if there are vertices higher on the mesh. Move around the mesh by selecting the neighboring vertex that has the smallest calculated p value
     // If the current vertex or the pmin neighbor is part of the water supply found earlier then multiply the distance by -p
     // if only c or only pmin neighbor is in the water supply, then divide by 2
