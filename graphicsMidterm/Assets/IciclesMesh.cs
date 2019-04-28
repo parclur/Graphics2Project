@@ -5,6 +5,7 @@ using UnityEngine;
 //[RequireComponent(typeof(MeshFilter))]
 public class IciclesMesh : MonoBehaviour
 {
+    // Reference: https://profs.etsmtl.ca/epaquette/Research/Papers/Gagnon.2011/index.html
     // Procedural Icicles
     // Water supply
     // Source surface is a plane above the object. This is the water source and contains the origins for the raycasts that will then be sent down and checked to see if it is hitting the mesh of the model
@@ -59,6 +60,7 @@ public class IciclesMesh : MonoBehaviour
     Mesh modelMesh;
     Vector3[] originalVertices;
     Vector3[] normals;
+    int[] triangles;
 
     // Water Supply Parameters
     public GameObject ss; // Water source surface (must be a plane)
@@ -69,12 +71,13 @@ public class IciclesMesh : MonoBehaviour
     Vector3[] waterSupplyVertices; // Stores the vertices that are in the water supply
 
     // Water Coefficient Parameters
-    Vector3[][] higherVertices; // Stores the higher vertices at a certain vertex
+    Vector3[,] higherVertices; // Stores the higher vertices at a certain vertex
     float[] waterCoefficient; // Stores the calculated water coefficient for each vertex
 
     // Drip Point Parameters
     int ns = 10; // Number of icicles
     float dl = 75; // Drip limit in degrees
+    Vector3[] dripCriterionVertices;
 
     // Icicle Trajectory Parameters
     float c = 2; // Curve angle in degrees
@@ -101,13 +104,21 @@ public class IciclesMesh : MonoBehaviour
         modelMesh = GetComponent<MeshFilter>().mesh;
         originalVertices = modelMesh.vertices;
         normals = modelMesh.normals;
+        triangles = modelMesh.triangles;
 
         // Water Supply Parameters
         ssMesh = ss.GetComponent<MeshFilter>().mesh;
         Physics.IgnoreLayerCollision(4, 4, true);
-        //waterSupplyVertices = new Vector3[nr];
+        waterSupplyVertices = new Vector3[originalVertices.Length];
 
+        // Water Coefficient Parameters
+        higherVertices = new Vector3[originalVertices.Length, originalVertices.Length];
+        waterCoefficient = new float[originalVertices.Length];
+
+        // Function Calls
         CalculateWaterSupply();
+        //FindHigherVertices();
+        CalculateWaterCoefficient();
     }
 
     // Gets a random point on the plane to simulate the random positions of raindrops
@@ -155,7 +166,7 @@ public class IciclesMesh : MonoBehaviour
                             // Checks if a vertex is upward facing
                             if(normals[j].y > 0)
                             {
-                                Debug.Log("Hit Point: " + hitPointLocal + " Vertex: " + originalVertices[j] + "Normal: " + normals[j]);
+                                //Debug.Log("Water Supply: Index: " + j + " Hit Point: " + hitPointLocal + " Vertex: " + originalVertices[j] + " Normal: " + normals[j]);
 
                                 // Add the vertex to the water supply
                                 waterSupplyVertices[wsIndex] = originalVertices[j];
@@ -179,33 +190,39 @@ public class IciclesMesh : MonoBehaviour
     {
         for (int i = 0; i < originalVertices.Length; i++)
         {
-            higherVertices[i][0] = originalVertices[i]; // sets the first value to be the starting vertex
+            higherVertices[i, 0] = originalVertices[i]; // sets the first value to be the starting vertex
 
-            for (int j = 0; j < originalVertices.Length; j++)
+            for (int j = 1; j < originalVertices.Length; j++)
             {
-                if(originalVertices[i].y < originalVertices[j].y) // Gets all vertices with a higher y value instead of ones that are directly adjacent
-                    higherVertices[i][j] = originalVertices[j];
+                if (originalVertices[i].y < originalVertices[j].y) // Gets all vertices with a higher y value instead of ones that are directly adjacent
+                {
+                    higherVertices[i, j] = originalVertices[j];
+                    Debug.Log("Current Vertex: " + higherVertices[i,0] + " Higher Vertices: " + higherVertices[i, j]);
+                }
             }
         }
     }
 
-    // Goes through the higher vertices from the current index and caluclates their dstance, finding the closest one
-    int FindClosestNeighbor(int currentVertexIndex)
+    // Goes through the higher vertices from the current index and caluclates their distance, finding the closest one
+    int FindClosestHigherNeighbor(int currentVertexIndex)
     {
         int neighborIndex = 1;
 
         float neighborDistance;
         float minNeighborDistance = float.MaxValue;
 
-        for (int i = 1; i < higherVertices.GetLength(currentVertexIndex); i++)
+        for (int i = 1; i < originalVertices.Length; i++)
         {
-            neighborDistance = Vector3.Distance(higherVertices[currentVertexIndex][0], higherVertices[currentVertexIndex][i]);
-
-            if(neighborDistance < minNeighborDistance)
+            if (i != currentVertexIndex)
             {
-                minNeighborDistance = neighborDistance;
+                neighborDistance = Vector3.Distance(originalVertices[currentVertexIndex], originalVertices[0]);
 
-                neighborIndex = i;
+                if (neighborDistance < minNeighborDistance)
+                {
+                    minNeighborDistance = neighborDistance;
+
+                    neighborIndex = i;
+                }
             }
         }
 
@@ -218,28 +235,35 @@ public class IciclesMesh : MonoBehaviour
         Vector3 c; // Current vertex
         float wc = 0; // Water coefficient
 
+        int neighborIndex = 1;
+
+        Vector3 cn; // cn = normalized vector from c to n
+        float p = 0; // p = dot product(cn, g)
+        float minp = float.MaxValue; // Used to compare p's of different vertices
+        Vector3 nmin; // The neighbor vertex for which p is minimal
+
+        FindHigherVertices();
+
         // Foreach vertex from the mesh
         for (int i = 0; i < originalVertices.Length; i++)
         {
             c = originalVertices[i];
 
             // while there are higher neighbor vertices to c do
-            if (higherVertices.GetLength(i) > 1)
+            //if (higherVertices.GetLength(1) > 1)
+            if (higherVertices[i, 1] != null)
             {
-                int neighborIndex = 1;
-
-                Vector3 cn;
-                float p = 0;
-                float minp = float.MaxValue;
 
                 // foreach higher neighbor vertex n do
                 // Higher with respect to gravity g
-                for (int j = 1; j < higherVertices.GetLength(i); j++)
+                for (int j = 1; j < higherVertices.GetLength(1); j++)
                 {
                     // cn = normalized vector from c to n
-                    cn = Vector3.Normalize(higherVertices[i][j] - higherVertices[i][0]);
+                    cn = Vector3.Normalize(higherVertices[i, j] - higherVertices[i, 0]);
                     // p = dot product(cn, g)
                     p = Vector3.Dot(cn, g);
+
+                    // Debug.Log("Water Coefficient: Index: " + i + " Vertex: " + c + " cn: " + cn + " p: " + p);
 
                     // Select neighbor nmin for which p is minimal
                     if (p < minp)
@@ -250,37 +274,54 @@ public class IciclesMesh : MonoBehaviour
                 }
 
                 // Select neighbor nmin for which p is minimal
-                Vector3 nmin = higherVertices[i][neighborIndex];
+                nmin = higherVertices[i, neighborIndex];
                 // The most upward n with respect to g
+                bool cIsInWaterSupply = false;
+                bool nminIsInWaterSupply = false;
 
                 // if c or nmin ∈ water supply then
                 for (int j = 0; j < waterSupplyVertices.Length; j++)
                 {
-                    if (c == waterSupplyVertices[j] || nmin == waterSupplyVertices[j])
+                    if (c == waterSupplyVertices[j])
                     {
-                        // d = distance between c and nmin
-                        float d = Vector3.Distance(nmin, c);
-                        // Multiply d by −p
-                        d *= -p;
+                        cIsInWaterSupply = true;
+                    }
 
-                        // if only c or nmin ∈ water supply then
-                        if ((c == waterSupplyVertices[j] && nmin != waterSupplyVertices[j]) || (c != waterSupplyVertices[j] && nmin == waterSupplyVertices[j]))
-                        {
-                            // There is less water since one of the vertices is not in the water supply
-                            //Divide the result by 2
-                            d = d / 2;
-                        }
-
-                        // wc = wc + result
-                        wc = wc + d;
+                    if (nmin == waterSupplyVertices[j])
+                    {
+                        nminIsInWaterSupply = true;
                     }
                 }
 
-                // c = nmin
-                c = nmin;
+                if (cIsInWaterSupply || nminIsInWaterSupply)
+                {
+                    // d = distance between c and nmin
+                    float d = Vector3.Distance(c, nmin);
+                    //Debug.Log("d: " + d);
+                    // Multiply d by −p
+                    d *= -p;
+                    Debug.Log("d: " + d + " d * -p: " + d);
+
+                    // if only c or nmin ∈ water supply then
+                    if ((cIsInWaterSupply && nminIsInWaterSupply) || (cIsInWaterSupply && nminIsInWaterSupply))
+                    {
+                        // There is less water since one of the vertices is not in the water supply
+                        //Divide the result by 2
+                        d = d / 2;
+                        Debug.Log("d /2: " + d);
+                    }
+
+                    // wc = wc + result
+                    wc = 0;
+                    wc = wc + d;
+
+                    // c = nmin
+                    c = nmin;
+                }
             }
 
             waterCoefficient[i] = wc;
+            Debug.Log("Water Coefficient: Index: " + i + " Vertex: " + c + " wc: " + wc);
         }
     }
 
@@ -290,13 +331,36 @@ public class IciclesMesh : MonoBehaviour
 
     }
 
-    // Drip points identification
+    // Drip Point Parameters
+    //int ns = 10; // Number of icicles
+    //float dl = 75; // Drip limit in degrees
+
+    // Drip point identification
+    void DripPointIdentification()
+    {
+        // At vertex wc != 0 && normal angle is between 0 and dl
+        for (int i = 0; i < originalVertices.Length; i++)
+        {
+            if (waterCoefficient[i] != 0)
+            {
+                //if ()
+            }
+        }
+        //dripCriterionVertices
+        // find the tris that contain these vertices
+
+        // using the icicle number, a set of points are randomly distributed on the drip region found earlier. these are the drip points
+    }
     // Drip limit dl is set by the user as an angle with respect to the gravity vector. This angle is used to determine the necessary angle of a vertex for water to drip off at
-    // Find the drip region using polygons which have at least on vertives with a non-zero water coefficient and for which all normal  vectors of all their vertices satisfy the drip criterion
+    // Find the drip region using polygons which have at least on vertices with a non-zero water coefficient and for which all normal  vectors of all their vertices satisfy the drip criterion
     // specify the number of icicles
     // using the icicle number, a set of points are randomly distributed on the drip region found earlier. these are the drip points
 
     // Icicles trajectories definition ( proposes rules and control parameters that allow the creation of several types of icicles)
+    void IcicleTrajectoryDefinition()
+    {
+
+    }
     // A trajectory is created at each drip point and using the water coefficient, the final length of the icicle can be computed directly
     // The user can adjust the appearance of the icicles with a few parameters: curvature angle c, probability of subdivision d, and angle of dispersion a
     // L-System Rules:
@@ -324,90 +388,4 @@ public class IciclesMesh : MonoBehaviour
     // user-defined lifetime of a water drop lt
     // user-defined number of metaballs ngi
     // rgi = minGI + s * [dUp * lt + dDown * (1 - lt)]      rgi is radius of each metaball; dUp is the distance between the current vertex and the highest vertex; dDown is distance between current vertex and the lowest vertex in the drip region; minGI is minimum thickness of ice glaze; s is scaling of the glaze ice thickness
-
-
-    //// Reference: https://profs.etsmtl.ca/epaquette/Research/Papers/Gagnon.2011/Gagnon-Icicles-2011.pdf
-   
-    //        // variables for finding neighboring vertices
-    //        float minDistance = float.MaxValue;
-    //        int p = 0;
-    //        int[] closestVertexIndex = new int[10];
-    //
-    //        float[] verticesDistances = new float[originalVertices.Length];
-    //
-    //        // Find the minimum distance between vertices
-    //        for (int i = 0; i < originalVertices.Length; i++)
-    //        {
-    //            if (v != originalVertices[i])
-    //            {
-    //                // go through vertices and store the distances
-    //                verticesDistances[i] = Vector3.Distance(originalVertices[i], v);
-    //
-    //                if (verticesDistances[i] < minDistance)
-    //                {
-    //                    minDistance = verticesDistances[i];
-    //                }
-    //            }
-    //        }
-    //
-    //        Debug.Log("Mindistance: " + minDistance);
-    //
-    //        // Find the closest vertices by comparing the distances found in the last loop; there should be 4 with the same distance and they are the neighboring vertices
-    //        for (int i = 1; i < originalVertices.Length; i++)
-    //        {
-    //            // compare and update minimum distance & closest character if required
-    //            if (verticesDistances[i] == minDistance)
-    //            {
-    //                closestVertexIndex[p] = i;
-    //
-    //                Debug.Log("Closest Vertex Index: " + i);
-    //                Debug.Log("Vertex" + p + ": " + originalVertices[closestVertexIndex[p]]);
-    //
-    //                p++;
-    //            }
-    //        }
-    //
-    //
-    //        //while there are higher neighbor vertices to c do
-    //        //foreach higher neighbor vertex n do
-    //        //// Higher with respect to gravity g
-    //        //Vector3 cn = Vector3.Normalize(Vector3.Distance(n, c)); //cn = normalized vector from c to n; Vector3.Distance(other.position, transform.position)
-    //        //Vector3 p = Vector3.Dot(cn, g);//p = dot product(cn, g)
-    //        //Select neighbor nmin for which p is minimal
-    //        //// The most upward n with respect to g
-    //        //if c or nmin ∈ water supply then
-    //        //d = distance between c and nmin
-    //        //Multiply d by −p
-    //        //if only c or nmin ∈ water supply then
-    //        ///* There is less water since one of the
-    //        //vertices is not in the water supply */
-    //        //Divide the result by 2
-    //        //wc = wc + result
-    //
-    //        //c = nmin
-    //
-    //        //vertexWaterCoefficients[i] = wc; //Save wc at vertex v
-    //        //i++;
-    //    }
-
-
-    // Reference: https://answers.unity.com/questions/1305031/pinpointing-one-vertice-with-raycasthit.html
-    public static int GetClosestVertex(RaycastHit aHit, int[] aTriangles)
-    {
-        var b = aHit.barycentricCoordinate;
-        int index = aHit.triangleIndex * 3;
-        if (aTriangles == null || index < 0 || index + 2 >= aTriangles.Length)
-            return -1;
-        if (b.x > b.y)
-        {
-            if (b.x > b.z)
-                return aTriangles[index]; // x
-            else
-                return aTriangles[index + 2]; // z
-        }
-        else if (b.y > b.z)
-            return aTriangles[index + 1]; // y
-        else
-            return aTriangles[index + 2]; // z
-    }
 }
