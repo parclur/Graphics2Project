@@ -70,6 +70,7 @@ public class IciclesMesh : MonoBehaviour
 
     // Water Coefficient Parameters
     Vector3[][] higherVertices; // Stores the higher vertices at a certain vertex
+    float[] waterCoefficient; // Stores the calculated water coefficient for each vertex
 
     // Drip Point Parameters
     int ns = 10; // Number of icicles
@@ -81,8 +82,8 @@ public class IciclesMesh : MonoBehaviour
     float au = 360; // Roll angle of growth and dispersal in degrees
 
     // Surface Modeling Parameters
-    float t = 0.5; // Growth ratio
-    float asin = 0.3; // Sine wave amplitude
+    float t = 0.5f; // Growth ratio
+    float asin = 0.3f; // Sine wave amplitude
     int fs = 50; // Sine wave frequency
     int eb = 1; // Base extent
     int nmb = 100; // Number of metaballs at the base
@@ -92,7 +93,7 @@ public class IciclesMesh : MonoBehaviour
     int minGI = 0; // Minimum radius for the glaze ice
     int ngi = 5000; // Number of metaballs used for the glaze ice
     int s = 1; // Scaling of the glaze ice
-    float lt = 0.5; // Lifetime of a water drop
+    float lt = 0.5f; // Lifetime of a water drop
 
     void Start()
     {
@@ -104,7 +105,7 @@ public class IciclesMesh : MonoBehaviour
         // Water Supply Parameters
         ssMesh = ss.GetComponent<MeshFilter>().mesh;
         Physics.IgnoreLayerCollision(4, 4, true);
-        waterSupplyVertices = new Vector3[nr];
+        //waterSupplyVertices = new Vector3[nr];
 
         CalculateWaterSupply();
     }
@@ -188,19 +189,27 @@ public class IciclesMesh : MonoBehaviour
         }
     }
 
-    // Returns the number of higher vertices from a single vertex
-    int NumberOfHigherVertices(Vector3 currentVertex)
+    // Goes through the higher vertices from the current index and caluclates their dstance, finding the closest one
+    int FindClosestNeighbor(int currentVertexIndex)
     {
-        int i = 0;
+        int neighborIndex = 1;
 
-        // Runs through the loop until it gets to the proper vertex
-        while(currentVertex != higherVertices[i][0])
+        float neighborDistance;
+        float minNeighborDistance = float.MaxValue;
+
+        for (int i = 1; i < higherVertices.GetLength(currentVertexIndex); i++)
         {
-            i++;
+            neighborDistance = Vector3.Distance(higherVertices[currentVertexIndex][0], higherVertices[currentVertexIndex][i]);
+
+            if(neighborDistance < minNeighborDistance)
+            {
+                minNeighborDistance = neighborDistance;
+
+                neighborIndex = i;
+            }
         }
 
-        // Finds the length at the index of the current vertex
-        return higherVertices.GetLength(i);
+        return neighborIndex;
     }
 
     // Water coefficient (provides an approximate quantity of water for each vertex)
@@ -214,20 +223,64 @@ public class IciclesMesh : MonoBehaviour
         {
             c = originalVertices[i];
 
-            // While there are higher neighbor vertices
-            while (NumberOfHigherVertices(c) > 1)
+            // while there are higher neighbor vertices to c do
+            if (higherVertices.GetLength(i) > 1)
             {
-                // At each vertex, find if there are vertices higher on the mesh. Move around the mesh by selecting the neighboring vertex that has the smallest calculated p value
+                int neighborIndex = 1;
+
+                Vector3 cn;
+                float p = 0;
+                float minp = float.MaxValue;
+
+                // foreach higher neighbor vertex n do
                 // Higher with respect to gravity g
-                Vector3 cn = Vector3.Normalize(Vector3.Distance(n, c)); //cn = normalized vector from c to n; Vector3.Distance(other.position, transform.position)
-                Vector3 p = Vector3.Dot(cn, g); //p = dot product(cn, g)
+                for (int j = 1; j < higherVertices.GetLength(i); j++)
+                {
+                    // cn = normalized vector from c to n
+                    cn = Vector3.Normalize(higherVertices[i][j] - higherVertices[i][0]);
+                    // p = dot product(cn, g)
+                    p = Vector3.Dot(cn, g);
 
+                    // Select neighbor nmin for which p is minimal
+                    if (p < minp)
+                    {
+                        minp = p;
+                        neighborIndex = j;
+                    }
+                }
 
-                // If the current vertex or the pmin neighbor is part of the water supply found earlier then multiply the distance by -p
-                // if only c or only pmin neighbor is in the water supply, then divide by 2
-                // calculate the rest of the water coeffient
+                // Select neighbor nmin for which p is minimal
+                Vector3 nmin = higherVertices[i][neighborIndex];
+                // The most upward n with respect to g
+
+                // if c or nmin ∈ water supply then
+                for (int j = 0; j < waterSupplyVertices.Length; j++)
+                {
+                    if (c == waterSupplyVertices[j] || nmin == waterSupplyVertices[j])
+                    {
+                        // d = distance between c and nmin
+                        float d = Vector3.Distance(nmin, c);
+                        // Multiply d by −p
+                        d *= -p;
+
+                        // if only c or nmin ∈ water supply then
+                        if ((c == waterSupplyVertices[j] && nmin != waterSupplyVertices[j]) || (c != waterSupplyVertices[j] && nmin == waterSupplyVertices[j]))
+                        {
+                            // There is less water since one of the vertices is not in the water supply
+                            //Divide the result by 2
+                            d = d / 2;
+                        }
+
+                        // wc = wc + result
+                        wc = wc + d;
+                    }
+                }
+
+                // c = nmin
+                c = nmin;
             }
-            // save the water coefficient at that vertex
+
+            waterCoefficient[i] = wc;
         }
     }
 
