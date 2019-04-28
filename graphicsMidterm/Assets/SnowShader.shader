@@ -375,16 +375,18 @@ Shader "Unlit/SnowShader"
 				//fixed4 col = (0.1, 0.1, 0.1, 0.5);
 				//col *= tex;
 				//col.a = 8;
-			//col *= i.diff;
-			//col.xyz *= 2;
-			//col.a = .3;
-			//col.xyz += WorldSpaceViewDir(col);
+				//col *= i.diff;
+				//col.xyz *= 2;
+				//col.a = .3;
+				//col.xyz += WorldSpaceViewDir(col);
 
 				//solution? just do both lol
 				float4 ahh = normalize(mul(test, col));
 
-				//add lighting fanciness
+				//add lighting fanciness so that the outside layer is affected by light as well
 				ahh *= i.diff;
+				//ahh += normalize(float4(UnityObjectToViewPos(i.worldPos), 1));
+				//ahh += (step(0, (normalize(test * 2) - .5)));
 
 				//attempt 3 to add color back
 				//ahh.xyz = tex2D(_GrabTexture, i.uv).xyz;
