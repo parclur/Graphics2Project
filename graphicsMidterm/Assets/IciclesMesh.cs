@@ -66,7 +66,33 @@ public class IciclesMesh : MonoBehaviour
     Vector3 g = new Vector3(0, -1, 0); // Gravity vector
     int nr = 100; // Number of rays (500)
     float rii = 0.1f; // Radius of influence at the intersection
-    Vector3[] waterSupplyVertices;
+    Vector3[] waterSupplyVertices; // Stores the vertices that are in the water supply
+
+    // Water Coefficient Parameters
+    Vector3[][] higherVertices; // Stores the higher vertices at a certain vertex
+
+    // Drip Point Parameters
+    int ns = 10; // Number of icicles
+    float dl = 75; // Drip limit in degrees
+
+    // Icicle Trajectory Parameters
+    float c = 2; // Curve angle in degrees
+    float d = 0.1f; // Division probability
+    float au = 360; // Roll angle of growth and dispersal in degrees
+
+    // Surface Modeling Parameters
+    float t = 0.5; // Growth ratio
+    float asin = 0.3; // Sine wave amplitude
+    int fs = 50; // Sine wave frequency
+    int eb = 1; // Base extent
+    int nmb = 100; // Number of metaballs at the base
+    int nc = 1; // Noise coefficient
+
+    // Glaze Ice Parameters
+    int minGI = 0; // Minimum radius for the glaze ice
+    int ngi = 5000; // Number of metaballs used for the glaze ice
+    int s = 1; // Scaling of the glaze ice
+    float lt = 0.5; // Lifetime of a water drop
 
     void Start()
     {
@@ -147,18 +173,69 @@ public class IciclesMesh : MonoBehaviour
         
     }
 
+    // Fills the higher vertices array so that the vertices are easily sorted through during the water coefficient calculations
+    void FindHigherVertices()
+    {
+        for (int i = 0; i < originalVertices.Length; i++)
+        {
+            higherVertices[i][0] = originalVertices[i]; // sets the first value to be the starting vertex
+
+            for (int j = 0; j < originalVertices.Length; j++)
+            {
+                if(originalVertices[i].y < originalVertices[j].y) // Gets all vertices with a higher y value instead of ones that are directly adjacent
+                    higherVertices[i][j] = originalVertices[j];
+            }
+        }
+    }
+
+    // Returns the number of higher vertices from a single vertex
+    int NumberOfHigherVertices(Vector3 currentVertex)
+    {
+        int i = 0;
+
+        // Runs through the loop until it gets to the proper vertex
+        while(currentVertex != higherVertices[i][0])
+        {
+            i++;
+        }
+
+        // Finds the length at the index of the current vertex
+        return higherVertices.GetLength(i);
+    }
+
     // Water coefficient (provides an approximate quantity of water for each vertex)
     void CalculateWaterCoefficient()
     {
+        Vector3 c; // Current vertex
+        float wc = 0; // Water coefficient
 
+        // Foreach vertex from the mesh
+        for (int i = 0; i < originalVertices.Length; i++)
+        {
+            c = originalVertices[i];
+
+            // While there are higher neighbor vertices
+            while (NumberOfHigherVertices(c) > 1)
+            {
+                // At each vertex, find if there are vertices higher on the mesh. Move around the mesh by selecting the neighboring vertex that has the smallest calculated p value
+                // Higher with respect to gravity g
+                Vector3 cn = Vector3.Normalize(Vector3.Distance(n, c)); //cn = normalized vector from c to n; Vector3.Distance(other.position, transform.position)
+                Vector3 p = Vector3.Dot(cn, g); //p = dot product(cn, g)
+
+
+                // If the current vertex or the pmin neighbor is part of the water supply found earlier then multiply the distance by -p
+                // if only c or only pmin neighbor is in the water supply, then divide by 2
+                // calculate the rest of the water coeffient
+            }
+            // save the water coefficient at that vertex
+        }
     }
 
-    // At each vertex, find if there are vertices higher on the mesh. Move around the mesh by selecting the neighboring vertex that has the smallest calculated p value
-    // If the current vertex or the pmin neighbor is part of the water supply found earlier then multiply the distance by -p
-    // if only c or only pmin neighbor is in the water supply, then divide by 2
-    // calculate the rest of the water coeffient
-    // save the water coefficient at that vertex
     // To visualize red and blue vertices correspond respectively to lower and higher values of wc
+    void WaterCoefficientVizualization()
+    {
+
+    }
 
     // Drip points identification
     // Drip limit dl is set by the user as an angle with respect to the gravity vector. This angle is used to determine the necessary angle of a vertex for water to drip off at
@@ -196,88 +273,8 @@ public class IciclesMesh : MonoBehaviour
     // rgi = minGI + s * [dUp * lt + dDown * (1 - lt)]      rgi is radius of each metaball; dUp is the distance between the current vertex and the highest vertex; dDown is distance between current vertex and the lowest vertex in the drip region; minGI is minimum thickness of ice glaze; s is scaling of the glaze ice thickness
 
 
-
-    //// Mesh Information
-    //public Mesh sourceSurfaceMesh;
-    //Vector3[] originalVertices;
-    //
-    //// Water Supply
-    //public Vector3[] rayOrigins;
-    //int[] intersectionPoints;
-    //Ray[] ray;
-    //int[] triangles;
-    //RaycastHit hit;
-    //
-    //void Start()
-    //{
-    //    sourceSurfaceMesh = GetComponent<MeshFilter>().sharedMesh;
-    //    originalVertices = sourceSurfaceMesh.vertices;
-    //    triangles = sourceSurfaceMesh.triangles;
-    //
-    //    ComputeWaterCoefficient();
-    //}
-    //
     //// Reference: https://profs.etsmtl.ca/epaquette/Research/Papers/Gagnon.2011/Gagnon-Icicles-2011.pdf
-    //// The goal is to determine, for each vertex, if the water reaches it and to compute an approximate amount of water.
-    //
-    //Vector3 gravityVector = new Vector3(0.0f, -9.8f, 0.0f); // m/s^2; uses just a downward force
-    //int numberOfRays = 10;
-    //
-    ////Vector3 c = new Vector3(0,0,0);
-    //// Determines the water coefficient of each vertex of the object
-    //float[] vertexWaterCoefficients;
-    //void ComputeWaterCoefficient()
-    //{
-    //    // Water Supply Definition
-    //    // Rain comes from a source surface ss provided by the user
-    //    // sourceSurfaceMesh defined above;
-    //
-    //    // Rain drops are computed using ray casting from the source surface according to the gravity vector. Ray origins are randomly distributed on the source surface based on the number of rays provided by the user
-    //    for (int i = 0; i < numberOfRays; i++)
-    //    {
-    //        //rayOrigins[i] = GetRandomPointOnMesh(sourceSurfaceMesh); // for each desired ray, calculates a random position on the source surface; stores it in an array in case we need to access the origin point later
-    //        Debug.Log(GetRandomPointOnMesh(sourceSurfaceMesh)); // for each desired ray, calculates a random position on the source surface; stores it in an array in case we need to access the origin point later
-    //
-    //        ray[i] = new Ray(GetRandomPointOnMesh(sourceSurfaceMesh), gravityVector); // creates rays with the random origin and gives direction based on the gravity vector
-    //
-    //        // At each intersection point, upward facing vertices at a distance lower than an influence radius rii are added to the water supply
-    //        
-    //    }
-    //
-    //    // (3) At each intersection point, upward facing vertices at a distance lower than an influence radius rii are added to the water supply
-    //    RaycastHit hit;
-    //    
-    //    for (int i = 0; i < numberOfRays; i++)
-    //    {
-    //        // For each ray, check is ray is hitting the mesh
-    //        //if (Physics.Raycast(ray[i], out hit))
-    //        //{
-    //            // If yes, get the closest vertex as the intersection point and store in an array
-    //        //    intersectionPoints[i] = GetClosestVertex(hit, triangles);
-    //
-    //            // For each intersection point, check if it is lower than the influence radius
-    //            // If yes, store to the water supply
-    //        //}
-    //    }
-    //    // To visualize the water supply, give the vertex a color and interpolate between the colors of the vertices
-    //
-    //
-    //
-    //
-    //
-    //
-    //    // This part simulates the water flow; water flow is computed only from vertex to vertex along the edges
-    //    //int i = 0;
-    //    int higherVertexIndex = 0;
-    //    // Upward computation
-    //    // foreach vertex v from the mesh do
-    //    foreach (Vector3 v in originalVertices)
-    //    {
-    //        Debug.Log("Checking Vertices: " + "Local: " + v + " World: " + transform.localToWorldMatrix * v); // All of the vertices on the sphere are between -0.5 and 0.5
-    //
-    //        Vector3 c = v; // Current vertex c = v
-    //        float wc = 0.0f; // Water coefficient wc = 0
-    //
+   
     //        // variables for finding neighboring vertices
     //        float minDistance = float.MaxValue;
     //        int p = 0;
@@ -318,7 +315,7 @@ public class IciclesMesh : MonoBehaviour
     //        }
     //
     //
-    //        //while(c.y < //while there are higher neighbor vertices to c do
+    //        //while there are higher neighbor vertices to c do
     //        //foreach higher neighbor vertex n do
     //        //// Higher with respect to gravity g
     //        //Vector3 cn = Vector3.Normalize(Vector3.Distance(n, c)); //cn = normalized vector from c to n; Vector3.Distance(other.position, transform.position)
