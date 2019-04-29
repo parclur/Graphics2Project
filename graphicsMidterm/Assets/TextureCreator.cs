@@ -39,10 +39,10 @@ public class TextureCreator : MonoBehaviour {
 	}
 
 	private void Update () {
-		if (transform.hasChanged) {
-			transform.hasChanged = false;
-			FillTexture();
-		}
+		//if (transform.hasChanged) {
+		//	transform.hasChanged = false;
+		//	FillTexture();
+		//}
 	}
 	
 	public void FillTexture () {

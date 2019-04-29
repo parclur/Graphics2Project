@@ -1,26 +1,20 @@
-﻿//This file was created by Claire Yeash and Zach Phillips
+﻿// Upgrade NOTE: replaced '_Object2World' with 'unity_ObjectToWorld'
+
+//This file was created by Claire Yeash and Zach Phillips
 Shader "Unlit/SnowShader"
 {
 	Properties
 	{
-		_MainTex ("Texture", 2D) = "white" {}
-		
-		// Noise variables
-		//_Resolution ("Resolution", Range (2, 512)) = 256
-		//_Frequency ("Frequency", Int) = 6
-		//_Octaves ("Octaves", Range(1, 8)) = 8
-		//_Lacunarity ("Lacunarity", Range(1.0, 4.0)) = 2.0
-		//_Persistence ("Persistence", Range(0.0, 1.0)) = 0.5
-		//_Dimensions ("Dimensions", Range(1, 3)) = 3
-		//_NoiseMethodType ("Noise Type", )
-		//_Gradient
+		_MainTex("Texture", 2D) = "white" {}
 
-		_BumpTex("Normalmap", 2D) = "bump" {}
-	
+		_BumpTex("Normal Map", 2D) = "bump" {}
+		_HeightTex("Height Map", 2D) = "height" {}
+		_HeightScale("Height Scale", Range(.35, .5)) = 0.005
+
 		// Color variables
-		_ColorBlue ("Blue", Color) = (0, 0, 1, .05)
-		_ColorGreen ("Green", Color) = (0, 1, 0, .05)
-		_ColorWhite ("White", Color) = (1, 1, 1, .05)
+		_ColorBlue("Blue", Color) = (0, 0, 1, .05)
+		_ColorGreen("Green", Color) = (0, 1, 0, .05)
+		_ColorWhite("White", Color) = (1, 1, 1, .05)
 
 		[Header(Colors)]
 		_Color("Color", Color) = (.5,.5,.5,1)
@@ -34,13 +28,14 @@ Shader "Unlit/SnowShader"
 		_SparkleDepth("Sparkle Depth", Range(0, 5)) = 1
 		_NoiseScale("noise Scale", Range(0, 5)) = 1
 	}
+
 	SubShader
 	{
 		Tags{ "RenderType" = "Transparent" }
 		LOD 300
 
 		CGPROGRAM
-		//#pragma surface surf Lambert alphatest:Zero
+
 		#pragma surface surfaceFunction Lambert
 		#include "UnityCG.cginc"
 
@@ -50,17 +45,27 @@ Shader "Unlit/SnowShader"
 		float4 _Color;
 		float4 _Tint;
 
+		float3 myViewDir;
+
 		struct Input
 		{
 			float2 uv_MainTex;
+			float2 uv_HeightTex;
 			float2 uv_BumpTex;
 			float2 uv_DissolveTex;
+			float3 viewDir;
 		};
 
+		//set up the normal map
 		void surfaceFunction(Input IN, inout SurfaceOutput o)
 		{
+			//Get view direction
+			myViewDir = IN.viewDir;
+
+			//get Main Texture
 			half4 tex = tex2D(_MainTex, IN.uv_MainTex);
 
+			//Apply the main texture and normal map
 			o.Albedo = tex.rgb * _Color.rgb * _Tint.rgb;
 			o.Normal = UnpackNormal(tex2D(_BumpTex, IN.uv_BumpTex));
 			o.Alpha = _Color.a;
@@ -70,12 +75,14 @@ Shader "Unlit/SnowShader"
 
 		ENDCG
 
-		Tags { "Queue"="Transparent" "RenderType" = "Transparent" }
+		Tags { "Queue" = "Transparent" "RenderType" = "Transparent" }
 		LOD 100
 
-		ZWrite Off
+		ZWrite On
 		Blend SrcAlpha OneMinusSrcAlpha
 
+		//First pass (technically second edit due to the surface shader)
+		//Used to add the color gradient
 		Pass
 		{
 			CGPROGRAM
@@ -83,7 +90,7 @@ Shader "Unlit/SnowShader"
 			#pragma fragment frag
 			// make fog work
 			#pragma multi_compile_fog
-			
+
 			#include "UnityCG.cginc"
 
 			struct appdata
@@ -100,22 +107,29 @@ Shader "Unlit/SnowShader"
 			};
 
 			sampler2D _MainTex;
+
+			sampler2D _HeightTex;
+			float _HeightScale;
+			float3 myViewDir;
+
 			float4 _MainTex_ST;
 			float4 _ColorBlue;
 			float4 _ColorGreen;
 			float4 _ColorWhite;
-			
-			v2f vert (appdata v)
+
+			v2f vert(appdata v)
 			{
 				v2f o;
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 				UNITY_TRANSFER_FOG(o,o.vertex);
+
 				return o;
 			}
-			
-			fixed4 frag (v2f i) : SV_Target
+
+			fixed4 frag(v2f i) : SV_Target
 			{
+				//Create some pixel cooordinated based on a kernal
 				float2 pixelCoord = i.uv;
 				float2 pixelCoord1 = float2(pixelCoord.x - 1, pixelCoord.y + 1);
 				float2 pixelCoord2 = float2(pixelCoord.x, pixelCoord.y + 1);
@@ -187,7 +201,9 @@ Shader "Unlit/SnowShader"
 			ENDCG
 		}
 
-		// Reference: https://github.com/LasseWestmark/Sparkle-Shader-Unity
+		//Second pass
+		//Adds sparkles
+		//Reference: https://github.com/LasseWestmark/Sparkle-Shader-Unity
 		Pass
 		{
 			Tags{ "LightMode" = "ForwardBase" }
@@ -203,9 +219,9 @@ Shader "Unlit/SnowShader"
 
 			struct appdata
 			{
-			float4 vertex : POSITION;
-			float2 uv : TEXCOORD0;
-			float3 normal : NORMAL;
+				float4 vertex : POSITION;
+				float2 uv : TEXCOORD0;
+				float3 normal : NORMAL;
 			};
 
 			struct v2f
@@ -214,7 +230,7 @@ Shader "Unlit/SnowShader"
 				UNITY_FOG_COORDS(1)
 				float4 vertex : SV_POSITION;
 				float3 wPos : TEXCOORD1;
-				float3 pos : TEXCOORD3;
+				float3 pos : TEXCOORD2;
 				float3 normal : NORMAL;
 			};
 
@@ -222,6 +238,10 @@ Shader "Unlit/SnowShader"
 			float4 _MainTex_ST;
 			float4 _Color, _SpecColor;
 			float _SpecPow, _GlitterPow;
+
+			sampler2D _HeightTex;
+			float _HeightScale;
+			float3 myViewDir;
 
 			v2f vert(appdata v)
 			{
@@ -233,6 +253,7 @@ Shader "Unlit/SnowShader"
 				o.normal = mul(unity_ObjectToWorld, float4(v.normal,0)).xyz;
 				o.vertex = UnityObjectToClipPos(v.vertex);
 				UNITY_TRANSFER_FOG(o,o.vertex);
+
 				return o;
 			}
 
@@ -255,7 +276,7 @@ Shader "Unlit/SnowShader"
 				float sparkles = Sparkles(viewDir, i.wPos);
 
 				//Sample the texture
-				fixed4 col = tex2D(_MainTex, i.uv) * _Color * diffuse;
+				float4 col = tex2D(_MainTex, i.uv) * _Color * diffuse;
 				//Apply Specular and sparkles
 				col += _SpecColor * (saturate(sparkles * glitterSpecular * 5) + specular);
 				//Apply fog
@@ -265,17 +286,21 @@ Shader "Unlit/SnowShader"
 			}
 			ENDCG
 		}
-		/*
+		
+		//Really cool feature in Unity shaders
+		//Takes the data from the previous pass
+		GrabPass{ "_GrabTexture" }
+		
+		//Third Pass
+		//Expands the verticies based on a height map and height amount
 		Pass
 		{
-			Tags{ "LightMode" = "ForwardBase" }
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-			// make fog work
-			#pragma multi_compile_fog
 
 			#include "UnityCG.cginc"
+			#include "UnityLightingCommon.cginc" // for _LightColor0
 
 			struct appdata
 			{
@@ -283,73 +308,84 @@ Shader "Unlit/SnowShader"
 				float2 uv : TEXCOORD0;
 				float3 normal : NORMAL;
 			};
-	
+
 			struct v2f
 			{
 				float2 uv : TEXCOORD0;
 				UNITY_FOG_COORDS(1)
 				float4 vertex : SV_POSITION;
-				float3 wPos : TEXCOORD1;
-				float3 pos : TEXCOORD3;
 				float3 normal : NORMAL;
+				float4 grabUv : TEXCOORD1;
+				float3 viewDir : TEXCOORD2s;
+
+				fixed4 diff : COLOR0; // diffuse lighting color
 			};
 
+			sampler2D _MainTex;
+
+			sampler2D _HeightTex;
+			float _HeightScale;
+
+			float4 _MainTex_ST;
+
+			//https://docs.unity3d.com/Manual/SL-SurfaceShaderExamples.html
 			v2f vert(appdata v)
 			{
 				v2f o;
-
-				
-				//o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-				o.wPos = mul(unity_ObjectToWorld, v.vertex).xyz;
-				o.pos = v.vertex;
-				o.normal = mul(unity_ObjectToWorld, float4(v.normal,0)).xyz;
 				o.vertex = UnityObjectToClipPos(v.vertex);
-				UNITY_TRANSFER_FOG(o,o.vertex);
-				return o;
+				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
 
-				foreach vertex v from the mesh do
-				{
-					float4 c = v; // Current vertex
-					float wc = 0.0; // Water coefficient
-					while there are higher neighbor vertices to c do
-					{
-						foreach higher neighbor vertex n do
-						{
-							// Higher with respect to gravity g
-							float4 n; // neighbor vertex
-							float4 cn = normalize(c - n); // normalized vector from c to n
-							float4 p = dot(cn, g); 
-						}
-						Select neighbor nmin for which p is minimal
-						// The most upward n with respect to g
-						if c or nmin ∈ water supply then
-						{
-							d = distance between c and nmin
-							Multiply d by −p
-							if only c or nmin ∈ water supply then
-							{
-								// There is less water since one of the vertices is not in the water supply
-								Divide the result by 2
-							}
-							wc = wc + result
-						}
-						c = nmin
-					}
-					Save wc at vertex v
-				}
+				//Get height information
+				float4 temp = tex2Dlod(_HeightTex, float4(v.uv, 0, 0));
+				float h = (normalize(temp.r) + normalize(temp.g) + temp.b) * _HeightScale;
+
+				// get vertex normal in world space
+				half3 worldNormal = UnityObjectToWorldNormal(v.normal);
+
+				// dot product between normal and light dir for the lighting
+				half nl = max(0, dot(worldNormal, _WorldSpaceLightPos0.xyz));
+
+				// factor in the light color
+				o.diff = nl * _LightColor0;
+
+				//multiple the verticies by the height modifier
+				v.vertex *= h;
+
+				//takes the verticies and cipts the object and grabsUVs
+				o.vertex = UnityObjectToClipPos(v.vertex);
+				o.grabUv = ComputeGrabScreenPos(o.vertex);
+
+				return o;
 			}
+
+			sampler2D _GrabTexture;
 
 			fixed4 frag(v2f i) : SV_Target
 			{
-				fixed4 col = (1.0, 1.0, 1.0, 1.0);
-				
-				//Apply fog
-				UNITY_APPLY_FOG(i.fogCoord, col);
+				//tex2D gives the nice color, but not the uniformness
+				fixed4 grabTex = tex2D(_GrabTexture, i.grabUv);// *i.uv);// float4(i.grabUv.xyz * worldViewDir, 1.0));
 
-				return col;
+				//tex2Dproj gives uniform but not the nice color
+				fixed4 grabTexProj = tex2Dproj(_GrabTexture, i.grabUv);// *i.uv);// float4(i.grabUv.xyz * worldViewDir, 1.0));
+
+				//solution? just do both lol
+				float4 combinedTex = normalize(mul(grabTex, grabTexProj));
+
+				//add lighting fanciness so that the outside layer is affected by light as well
+				combinedTex *= i.diff;
+
+				//alpha set so we can see through the expanded layer onto the original object
+				//This creates our fake 'parallaxing' effect
+				combinedTex.a = .7;
+
+				//I was unable to find out how to get the textures to show on the expanded layer
+				//I tried many things but the below code was the closest I got. I kept having an 
+				//issue with the view direction influencing the color/texture applied.
+				//combinedTex.xyz += grabTex.xyz;
+
+				return combinedTex;
 			}
 			ENDCG
 		}
-		*/
 	}
 }
