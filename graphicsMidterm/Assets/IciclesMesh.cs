@@ -61,6 +61,7 @@ public class IciclesMesh : MonoBehaviour
     Vector3[] originalVertices;
     Vector3[] normals;
     int[] triangles;
+    int triangleCount;
 
     // Water Supply Parameters
     public GameObject ss; // Water source surface (must be a plane)
@@ -78,6 +79,8 @@ public class IciclesMesh : MonoBehaviour
     int ns = 10; // Number of icicles
     float dl = 75; // Drip limit in degrees
     Vector3[] dripCriterionVertices;
+    int[] dripRegionTriangles;
+    Vector3[] dripPoints;
 
     // Icicle Trajectory Parameters
     float c = 2; // Curve angle in degrees
@@ -105,6 +108,7 @@ public class IciclesMesh : MonoBehaviour
         originalVertices = modelMesh.vertices;
         normals = modelMesh.normals;
         triangles = modelMesh.triangles;
+        triangleCount = triangles.Length / 3;
 
         // Water Supply Parameters
         ssMesh = ss.GetComponent<MeshFilter>().mesh;
@@ -115,10 +119,16 @@ public class IciclesMesh : MonoBehaviour
         higherVertices = new Vector3[originalVertices.Length, originalVertices.Length];
         waterCoefficient = new float[originalVertices.Length];
 
+        // Drip Point Parameters
+        dripCriterionVertices = new Vector3[originalVertices.Length];
+        dripRegionTriangles = new int[triangleCount];
+        dripPoints = new Vector3[ns];
+
         // Function Calls
         CalculateWaterSupply();
-        //FindHigherVertices();
+        FindHigherVertices();
         CalculateWaterCoefficient();
+        DripPointIdentification();
     }
 
     // Gets a random point on the plane to simulate the random positions of raindrops
@@ -197,7 +207,7 @@ public class IciclesMesh : MonoBehaviour
                 if (originalVertices[i].y < originalVertices[j].y) // Gets all vertices with a higher y value instead of ones that are directly adjacent
                 {
                     higherVertices[i, j] = originalVertices[j];
-                    Debug.Log("Current Vertex: " + higherVertices[i,0] + " Higher Vertices: " + higherVertices[i, j]);
+                    // Debug.Log("Current Vertex: " + higherVertices[i,0] + " Higher Vertices: " + higherVertices[i, j]);
                 }
             }
         }
@@ -241,6 +251,8 @@ public class IciclesMesh : MonoBehaviour
         float p = 0; // p = dot product(cn, g)
         float minp = float.MaxValue; // Used to compare p's of different vertices
         Vector3 nmin; // The neighbor vertex for which p is minimal
+        bool cIsInWaterSupply = false;
+        bool nminIsInWaterSupply = false;
 
         FindHigherVertices();
 
@@ -276,8 +288,8 @@ public class IciclesMesh : MonoBehaviour
                 // Select neighbor nmin for which p is minimal
                 nmin = higherVertices[i, neighborIndex];
                 // The most upward n with respect to g
-                bool cIsInWaterSupply = false;
-                bool nminIsInWaterSupply = false;
+                cIsInWaterSupply = false;
+                nminIsInWaterSupply = false;
 
                 // if c or nmin ∈ water supply then
                 for (int j = 0; j < waterSupplyVertices.Length; j++)
@@ -300,7 +312,7 @@ public class IciclesMesh : MonoBehaviour
                     //Debug.Log("d: " + d);
                     // Multiply d by −p
                     d *= -p;
-                    Debug.Log("d: " + d + " d * -p: " + d);
+                    // Debug.Log("d: " + d + " d * -p: " + d);
 
                     // if only c or nmin ∈ water supply then
                     if ((cIsInWaterSupply && nminIsInWaterSupply) || (cIsInWaterSupply && nminIsInWaterSupply))
@@ -308,7 +320,7 @@ public class IciclesMesh : MonoBehaviour
                         // There is less water since one of the vertices is not in the water supply
                         //Divide the result by 2
                         d = d / 2;
-                        Debug.Log("d /2: " + d);
+                        // Debug.Log("d /2: " + d);
                     }
 
                     // wc = wc + result
@@ -321,7 +333,7 @@ public class IciclesMesh : MonoBehaviour
             }
 
             waterCoefficient[i] = wc;
-            Debug.Log("Water Coefficient: Index: " + i + " Vertex: " + c + " wc: " + wc);
+            // Debug.Log("Water Coefficient: Index: " + i + " Vertex: " + c + " wc: " + wc);
         }
     }
 
@@ -331,47 +343,146 @@ public class IciclesMesh : MonoBehaviour
 
     }
 
-    // Drip Point Parameters
-    //int ns = 10; // Number of icicles
-    //float dl = 75; // Drip limit in degrees
+    // Get 3D BaryCentric Coordinates
+    // Reference: https://answers.unity.com/questions/1105729/find-uv-coordinates-of-mesh-without-a-raycast.html
+    public static Vector3 GetBarycentric(Vector3 aV1, Vector3 aV2, Vector3 aV3)
+    {
+        Vector3 a = aV2 - aV3, b = aV1 - aV3;
+        float aLen = a.x * a.x + a.y * a.y + a.z * a.z;
+        float bLen = b.x * b.x + b.y * b.y + b.z * b.z;
+        float ab = a.x * b.x + a.y * b.y + a.z * b.z;
+        float d = aLen * bLen - ab * ab;
+        Vector3 B = new Vector3((aLen * ab), (bLen- ab)) / d;
+        B.z = 1.0f - B.x - B.y;
+        return B;
+    }
 
     // Drip point identification
     void DripPointIdentification()
     {
-        // At vertex wc != 0 && normal angle is between 0 and dl
+        int j = 0; // Used to fill the dripCriterionVertices
+        int p = 0; // Used to fill the dripRegionTriangles
+
         for (int i = 0; i < originalVertices.Length; i++)
         {
-            if (waterCoefficient[i] != 0)
+            // Drip limit dl is set by the user as an angle with respect to the gravity vector. This angle is used to determine the necessary angle of a vertex for water to drip off at
+            float angle = Vector3.Angle(g, normals[i]);
+            Vector3 cross = Vector3.Cross(g, normals[i]);
+
+            if (cross.y < 0)
             {
-                //if ()
+                angle = -angle;
+            }
+
+            // Find the vertices for which the normal vectors of all their vertices satisfy the drip criterion
+            if (normals[i].y <= 0.0f)
+            {
+                if ((90 - dl) < angle)
+                {
+                    // Debug.DrawRay(originalVertices[i], normals[i], Color.red, 5);
+                    // Debug.DrawRay(originalVertices[i], g, Color.green, 5);
+                    // Debug.Log("Index: " + i + " Vertex: " + originalVertices[i] + " Normal: " + normals[i] + " Angle: " + angle + " WC: " + waterCoefficient[i]);
+
+                    dripCriterionVertices[j] = originalVertices[i];
+                    j++;
+                }
+            }
+        }   
+
+        // Find the drip region AKA the tris that contain these vertices
+        for (int i = 0; i < triangleCount; i++)
+        {
+            Vector3 v1 = originalVertices[triangles[i * 3]];
+            Vector3 v2 = originalVertices[triangles[i * 3 + 1]];
+            Vector3 v3 = originalVertices[triangles[i * 3 + 2]];
+
+            // Find the drip region using polygons which have at least one vertex with a non-zero water coefficient and for which all normal vectors of all their vertices satisfy the drip criterion
+            if (waterCoefficient[triangles[i * 3]] != 0 || waterCoefficient[triangles[i * 3 + 1]] != 0 || waterCoefficient[triangles[i * 3 + 2]] != 0)
+            {
+                //Debug.Log("Triangle Count: " + triangleCount);
+                //Debug.Log("Drip Point Identification: At least one vertex has a non-zero water coefficient");
+                bool v1Drip = false;
+                bool v2Drip = false;
+                bool v3Drip = false;
+
+                for(int q = 0; q < dripCriterionVertices.Length; q++)
+                {
+                    if (v1 == dripCriterionVertices[q])
+                    {
+                        v1Drip = true;
+                        //Debug.Log("Tri " + i + " v1 satisfies the drip criterion");
+                    }
+                    if (v2 == dripCriterionVertices[q])
+                    {
+                        v2Drip = true;
+                        //Debug.Log("Tri " + i + " v2 satisfies the drip criterion");
+                    }
+                    if (v3 == dripCriterionVertices[q])
+                    {
+                        v3Drip = true;
+                        //Debug.Log("Tri " + i + " v3 satisfies the drip criterion");
+                    }
+                }
+
+                if (v1Drip == true && v2Drip == true && v3Drip == true)
+                {
+                    dripRegionTriangles[p] = triangles[i * 3];
+                    //Debug.Log("Drip Point Identification: p: " + p);
+                    //Debug.Log("Drip Point Identification: Drip Region Triangles: " + dripRegionTriangles[p]);
+                    p++;
+                }
             }
         }
-        //dripCriterionVertices
-        // find the tris that contain these vertices
 
-        // using the icicle number, a set of points are randomly distributed on the drip region found earlier. these are the drip points
+        //Debug.Log("Drip Region Triangles Length: " + dripRegionTriangles.Length);
+        for (int c = 0; c < dripRegionTriangles.Length; c++)
+        {
+            //Debug.Log("Drip Region Triangles: " + dripRegionTriangles[c]);
+        }
+        
+        // Using the icicle number, a set of points are randomly distributed on the drip region found earlier. these are the drip points
+        // Get random tri and random point on tri
+        for (int q = 0; q < ns; q++)
+        {
+            int randomTriangle = dripRegionTriangles[Random.Range(0, p)];
+            Debug.Log("Random Tri: " + randomTriangle);
+
+            // Get random point on tri
+            //dripPoints[q] = GetBarycentric(originalVertices[triangles[dripRegionTriangles[randomTriangle]]], originalVertices[triangles[dripRegionTriangles[randomTriangle] + 1]], originalVertices[triangles[dripRegionTriangles[randomTriangle] + 2]]);
+            switch(Random.Range(0,2))
+            {
+                case 0:
+                    dripPoints[q] = originalVertices[triangles[randomTriangle]];
+                    break;
+                case 1:
+                    dripPoints[q] = originalVertices[triangles[randomTriangle + 1]];
+                    break;
+                case 2:
+                    dripPoints[q] = originalVertices[triangles[randomTriangle + 2]];
+                    break;
+            }
+
+            Debug.Log("Drip Point " + q + ": " + dripPoints[q]);
+            Debug.DrawRay(dripPoints[q], g, Color.blue, 20);
+        }
     }
-    // Drip limit dl is set by the user as an angle with respect to the gravity vector. This angle is used to determine the necessary angle of a vertex for water to drip off at
-    // Find the drip region using polygons which have at least on vertices with a non-zero water coefficient and for which all normal  vectors of all their vertices satisfy the drip criterion
-    // specify the number of icicles
-    // using the icicle number, a set of points are randomly distributed on the drip region found earlier. these are the drip points
 
     // Icicles trajectories definition ( proposes rules and control parameters that allow the creation of several types of icicles)
     void IcicleTrajectoryDefinition()
     {
+        // A trajectory is created at each drip point and using the water coefficient, the final length of the icicle can be computed directly
+        // The user can adjust the appearance of the icicles with a few parameters: curvature angle c, probability of subdivision d, and angle of dispersion a
+        // L-System Rules:
+        // ω : FX
+        // p1' :X  (1-d)->  + (c)FFF/(a)X                   corresponds to the growth of the icicle
+        // p1'' :X  (d)-> [+(c)+(30◦)F-(30◦)FX]A            creates a new branch
+        // p2 :A  -> +(c)FFF\(a)X                           used to grow the main trunk after the creation of a branch
+        // Breaking down the role of each parameter
+        // Parameter c represents the angle of curvature. While growing, the icicle is rotated by this angle at each step; For linear icicles, c should have a low value
+        // Parameter a is also a rotation done at each growth step, but is a rotation (roll) around a trajectory.It affects the irregularity of the branch growth direction as well as the spread of the icicle branches. computed from the user specified angle au as a = au × 137.5◦/360◦
+        // Parameter d represents the probability of creating a new branch
 
     }
-    // A trajectory is created at each drip point and using the water coefficient, the final length of the icicle can be computed directly
-    // The user can adjust the appearance of the icicles with a few parameters: curvature angle c, probability of subdivision d, and angle of dispersion a
-    // L-System Rules:
-    // ω : FX
-    // p1' :X  (1-d)->  + (c)FFF/(a)X                   corresponds to the growth of the icicle
-    // p1'' :X  (d)-> [+(c)+(30◦)F-(30◦)FX]A            creates a new branch
-    // p2 :A  -> +(c)FFF\(a)X                           used to grow the main trunk after the creation of a branch
-    // Breaking down the role of each parameter
-    // Parameter c represents the angle of curvature. While growing, the icicle is rotated by this angle at each step; For linear icicles, c should have a low value
-    // Parameter a is also a rotation done at each growth step, but is a rotation (roll) around a trajectory.It affects the irregularity of the branch growth direction as well as the spread of the icicle branches. computed from the user specified angle au as a = au × 137.5◦/360◦
-    // Parameter d represents the probability of creating a new branch
 
     // Surface Creation (surface is created around the trajectory from the previous stage by computing the varying radius along the trajectory)
     // Icicle profile
